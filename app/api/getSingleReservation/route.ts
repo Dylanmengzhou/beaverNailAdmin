@@ -1,0 +1,105 @@
+import { neon } from "@neondatabase/serverless";
+import { NextResponse } from "next/server";
+
+export const runtime = "edge"; // 👈 这里对的！
+
+export async function GET(req: Request) {
+	const databaseUrl = process.env.DATABASE_URL;
+	if (!databaseUrl) {
+		throw new Error("DATABASE_URL is not defined");
+	}
+	const sql = neon(databaseUrl);
+
+	// 用 URL 解析 query
+	const { searchParams } = new URL(req.url);
+	const reservationid = searchParams.get("reservationid");
+
+	if (!reservationid) {
+		return NextResponse.json(
+			{ success: false, message: "预约ID不能为空" },
+			{ status: 400 }
+		);
+	}
+
+	try {
+		const result = await sql`
+			SELECT
+				r.id AS "reservationId",
+				u.name,
+				u.email,
+				r.date,
+				r."timeSlot"
+			FROM "Reservation" r
+			JOIN "User" u ON r."userId" = u.id
+			WHERE r.id = ${reservationid}
+			LIMIT 1
+		`;
+
+		if (result.length === 0) {
+			return NextResponse.json(
+				{ success: false, message: "未找到预约" },
+				{ status: 404 }
+			);
+		}
+
+		return NextResponse.json(result[0], { status: 200 });
+	} catch (error) {
+		const errorMessage =
+			error instanceof Error ? error.message : "未知错误";
+		return NextResponse.json(
+			{ success: false, message: errorMessage },
+			{ status: 500 }
+		);
+	}
+}
+
+export async function POST(req: Request) {
+	const databaseUrl = process.env.DATABASE_URL;
+	if (!databaseUrl) {
+		throw new Error("DATABASE_URL is not defined");
+	}
+	const sql = neon(databaseUrl);
+
+	// 同样用 URL 解析 query
+	const { searchParams } = new URL(req.url);
+	const reservationid = searchParams.get("reservationid");
+
+	if (!reservationid) {
+		return NextResponse.json(
+			{ success: false, message: "预约ID不能为空" },
+			{ status: 400 }
+		);
+	}
+
+	try {
+		const reservationExists = await sql`
+			SELECT COUNT(*)
+			FROM "Reservation"
+			WHERE id = ${reservationid}
+		`;
+
+		if (reservationExists[0].count === "0") {
+			return NextResponse.json(
+				{ success: false, message: "未找到预约" },
+				{ status: 404 }
+			);
+		}
+
+		await sql`
+			DELETE FROM "Reservation"
+			WHERE id = ${reservationid}
+		`;
+
+		return NextResponse.json(
+			{ success: true, message: "删除成功" },
+			{ status: 200 }
+		);
+	} catch (error) {
+		const errorMessage =
+			error instanceof Error ? error.message : "未知错误";
+		return NextResponse.json(
+			{ success: false, message: errorMessage },
+			{ status: 500 }
+		);
+	}
+}

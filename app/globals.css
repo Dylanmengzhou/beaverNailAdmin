@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+html,
+body,
+:root {
+	height: 100svh;
+	width: 100%;
+	--fc-today-bg-color: #ffd7e2;
+	--fc-event-bg-color: #aa336a;
+	--fc-event-border-color: #aa336a;
+}
+
+/* 移动端日历样式优化 */
+@media (max-width: 767px) {
+	.fc {
+		height: 100svh;
+
+	}
+	.fc .fc-toolbar-title {
+		font-size: 1.1em !important;
+	}
+
+	.fc .fc-toolbar {
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		justify-content: space-between;
+	}
+
+	.fc .fc-daygrid-day-number {
+		font-size: 0.9em;
+		padding: 2px;
+	}
+	.fc .fc-daygrid-day-frame {
+		min-height: 150px;
+	}
+
+	.fc .fc-col-header-cell-cushion {
+		font-size: 0.9em;
+		padding: 2px;
+	}
+
+	.fc .fc-button {
+		padding: 0.2em 0.4em;
+		font-size: 1.4em;
+	}
+
+	/* 优化事件显示 */
+	.fc-daygrid-event {
+		margin-top: 1px !important;
+		margin-bottom: 1px !important;
+		padding: 1px 2px !important;
+	}
+
+	/* 优化移动端滚动效果 */
+	.fc-view-harness {
+		overflow-y: auto !important;
+		-webkit-overflow-scrolling: touch !important;
+		max-height: 100vh !important;
+		touch-action: pan-y !important;
+	}
+
+	/* 确保日历容器可滚动 */
+	.fc-scroller {
+		overflow: auto !important;
+		-webkit-overflow-scrolling: touch !important;
+	}
+
+	/* 修复触摸滑动问题 */
+	.fc {
+		touch-action: manipulation !important;
+		-webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+	}
+
+	/* 确保事件在移动端更紧凑 */
+	.fc-daygrid-day-events {
+		margin-bottom: 0 !important;
+	}
+}
+
+/* 通用日历事件样式优化 */
+.fc-daygrid-event {
+	border-radius: 3px !important;
+	font-size: 0.85em !important;
+	line-height: 1.2 !important;
+	white-space: nowrap !important;
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+}
+
+/* 日历容器样式 */
+.calendar-container {
+	width: 100%;
+	overflow: hidden;
+	position: relative;
+}
+
+/* 移动端日历容器特殊样式 */
+.mobile-calendar {
+	touch-action: pan-y;
+	-webkit-overflow-scrolling: touch;
+	overflow-x: hidden;
+	overflow-y: auto;
+	max-width: 100%;
+	margin: 0 auto;
+}
+
+/* 确保事件内容紧凑显示 */
+.fc-daygrid-event .fc-event-title {
+	padding: 0 !important;
+	font-weight: normal !important;
+}
+
+/* 多事件显示优化 */
+.fc-daygrid-more-link {
+	font-size: 0.85em !important;
+	margin-top: 1px !important;
+	padding: 1px !important;
+	background-color: rgba(0, 0, 0, 0.05) !important;
+	border-radius: 3px !important;
+}
