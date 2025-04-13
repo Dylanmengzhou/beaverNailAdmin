@@ -55,7 +55,7 @@ const LoginPage = () => {
                 localStorage.setItem('refreshToken', data.refreshToken);
                 router.push("/calendar");
             } else {
-                toast.error(data.error || `登录失败`, {
+                toast.error(`登录失败`, {
                     position: "top-center",
                     duration: 1500,
                 });
@@ -71,7 +71,7 @@ const LoginPage = () => {
             // 5秒钟后解除冷却
             setTimeout(() => {
                 setCooldown(false);
-            }, 5000);
+            }, 1000);
         }
     };
 
@@ -113,7 +113,7 @@ const LoginPage = () => {
                                     {loading
                                         ? "登录中..."
                                         : cooldown
-                                            ? "请稍后再试..."
+                                            ? "登录中..."
                                             : "登录"}
                                 </Button>
                             </div>
