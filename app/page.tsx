@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const LoginPage = () => {
-    const [checkingAuth, setCheckingAuth] = useState(true)
 
     useEffect(() => {
         const token = localStorage.getItem('accessToken')
