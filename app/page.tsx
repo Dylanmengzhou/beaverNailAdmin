@@ -1,205 +1,92 @@
 "use client";
-
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-export default function Home() {
-	const [isMobile, setIsMobile] = useState(false);
-	const router = useRouter();
+import { useEffect, useState } from "react";
 
-	// 格式化日期函数
-	const formatDate = (dateString: string) => {
-		const date = new Date(dateString);
-		const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-		const year = koreaDate.getUTCFullYear();
-		const month = String(koreaDate.getUTCMonth() + 1).padStart(
-			2,
-			"0"
-		);
-		const day = String(koreaDate.getUTCDate()).padStart(2, "0");
-		return `${year}-${month}-${day}`;
-	};
+const LoginPage = () => {
+    const [checkingAuth, setCheckingAuth] = useState(true)
 
-	// API 返回的数据类型
-	type ApiReservation = {
-		name: string | null;
-		email: string | null;
-		id: string;
-		date: string;
-		timeSlot: string;
-	};
+    useEffect(() => {
+        const token = localStorage.getItem('accessToken')
+        if (token) {
+            router.push('/calendar')
+        }
+    }, [])
+    const router = useRouter();
+    const credentialsAction = async (formData: FormData) => {
+        const username = formData.get("username");
+        const password = formData.get("password");
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ username, password }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
-	// Event 显示的数据类型
-	type EventData = {
-		user: string;
-		timeslot: string;
-		contact: string;
-		date: string;
-		reservationId: string;
-	};
+        const data = await res.json();
 
-	// 状态管理
-	const [apiReservations, setApiReservations] = useState<
-		ApiReservation[]
-	>([]);
+        if (res.ok) {
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
+            router.push("/calendar")
 
-	// 获取预约数据
-	const handleGetReservation = async () => {
-		try {
-			const response = await fetch("/api/getNewReservation", {
-				method: "GET",
-			});
-			const data = await response.json();
+        } else {
+            alert(data.error);
+        }
+    };
+    return (
+        <div className="w-svw h-svh flex items-center justify-center">
+            <Card className="w-[350px]">
+                <CardHeader className="flex flex-col justify-center items-center">
+                    <CardTitle className="text-2xl">欢迎回来</CardTitle>
+                    <CardDescription>Beaver Nail 登录系统</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form action={credentialsAction}>
+                        <div className="grid w-full items-center gap-4">
+                            <div className="flex flex-col space-y-1.5">
+                                <Label htmlFor="username">账号</Label>
+                                <Input
+                                    id="username"
+                                    name="username"
+                                    placeholder="请输入账号"
+                                />
+                            </div>
+                            <div className="flex flex-col space-y-1.5">
+                                <Label htmlFor="password">密码</Label>
+                                <Input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    placeholder="请输入密码"
+                                />
+                            </div>
+                            <div className="pt-2">
+                                <Button
+                                    type="submit"
+                                    className="w-full bg-black text-white"
+                                >
+                                    登录
+                                </Button>
+                            </div>
+                        </div>
+                    </form>
+                </CardContent>
+                <CardFooter className="flex justify-center items-center"></CardFooter>
+            </Card>
+        </div>
+    );
+};
 
-			if (data.success && Array.isArray(data.message)) {
-				setApiReservations(data.message);
-				console.log("成功获取预约数据:", data.message);
-				toast.success(`成功获取预约数据: ${data.message.length}`, {
-					position: "bottom-center",
-					duration: 1000,
-				});
-			} else {
-				console.error("获取预约数据失败:", data.message);
-				alert("获取预约数据失败");
-			}
-		} catch (error) {
-			console.error("获取预约数据出错:", error);
-			alert("获取预约数据出错");
-		}
-	};
-
-	// 页面加载时检测设备 + 拉取预约
-	useEffect(() => {
-		const checkIfMobile = () => {
-			setIsMobile(window.innerWidth < 768);
-		};
-
-		checkIfMobile();
-		window.addEventListener("resize", checkIfMobile);
-		handleGetReservation();
-
-		return () => {
-			window.removeEventListener("resize", checkIfMobile);
-		};
-	}, []);
-
-	// 把 API 数据转成 Calendar 需要的格式
-	const apiEventsData: EventData[] = apiReservations.map(
-		(reservation) => {
-			const hour = parseInt(reservation.timeSlot);
-			const nextTwoHour = hour + 2;
-			const formattedTimeSlot = `${hour}:00-${nextTwoHour}:00`;
-
-			return {
-				user: reservation.name ?? "未知用户",
-				timeslot: formattedTimeSlot,
-				contact: reservation.email ?? "无联系方式",
-				date: formatDate(reservation.date),
-				reservationId: reservation.id,
-			};
-		}
-	);
-
-	// 渲染事件内容
-	const renderEventContent = (eventInfo: {
-		event: {
-			extendedProps: {
-				user: string;
-				timeslot: string;
-				contact: string;
-				reservationId: string;
-			};
-		};
-	}) => {
-		const { user, timeslot, contact, reservationId } =
-			eventInfo.event.extendedProps;
-
-		const handleClick = () => {
-			router.push(`/reservation/${reservationId}`);
-		};
-
-		return (
-			<div
-				className="flex flex-col text-xs leading-tight p-0.5"
-				onClick={handleClick}
-				style={{ cursor: "pointer" }}
-			>
-				{isMobile ? (
-					<div className="flex flex-col text-xs leading-tight p-0.5">
-						<div className="font-medium truncate">{user}</div>
-					</div>
-				) : (
-					<>
-						<div className="flex justify-between">
-							<div className="font-medium truncate mr-1">{user}</div>
-							<div>{timeslot}</div>
-						</div>
-						<div className="flex justify-between">
-							<div className="truncate mr-1">{contact}</div>
-							<div className="text-[10px]">
-								{reservationId.substring(0, 6)}
-							</div>
-						</div>
-					</>
-				)}
-			</div>
-		);
-	};
-
-	// 生成 FullCalendar 的 events
-	const sampleEvents = apiEventsData.map((event) => ({
-		title: "",
-		date: event.date,
-		extendedProps: {
-			user: event.user,
-			timeslot: event.timeslot,
-			contact: event.contact,
-			reservationId: event.reservationId,
-		},
-	}));
-
-	return (
-		<div className="flex flex-col h-svh justify-center items-center calendar-container">
-			<FullCalendar
-				plugins={[dayGridPlugin, interactionPlugin]}
-				initialView="dayGridMonth"
-				weekends={true}
-				locale={"zh-cn"}
-				headerToolbar={
-					isMobile
-						? {
-								left: "prev,myRefreshButton", // 👈 加一个刷新按钮
-								center: "title",
-								right: "today,next",
-						  }
-						: {
-								left: "prev,next today myRefreshButton", // 👈 桌面版也加
-								center: "title",
-								right: "dayGridMonth,dayGridWeek,dayGridDay",
-						  }
-				}
-				customButtons={{
-					myRefreshButton: {
-						text: "刷新", // 按钮显示的文字
-						click: handleGetReservation, // 👈 点击调用你的拉取 API 函数
-					},
-				}}
-				titleFormat={{
-					year: "numeric",
-					month: "long",
-				}}
-				events={sampleEvents}
-				eventContent={renderEventContent}
-				height="auto"
-				contentHeight="auto"
-				dayMaxEventRows={isMobile ? 5 : true}
-				moreLinkClick="popover"
-				fixedWeekCount={false}
-				stickyHeaderDates={true}
-			/>
-		</div>
-	);
-}
+export default LoginPage;
