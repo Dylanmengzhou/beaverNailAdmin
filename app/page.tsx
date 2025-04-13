@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 const LoginPage = () => {
 
@@ -36,12 +37,19 @@ const LoginPage = () => {
         const data = await res.json();
 
         if (res.ok) {
+            toast.success(`登录成功`, {
+                position: "top-center",
+                duration: 1000,
+            });
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
             router.push("/calendar")
 
         } else {
-            alert(data.error);
+            toast.error(`登录失败`, {
+                position: "top-center",
+                duration: 1000,
+            });
         }
     };
     return (
