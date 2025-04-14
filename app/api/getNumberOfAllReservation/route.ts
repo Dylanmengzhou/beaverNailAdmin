@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 
-export const runtime = "edge"; // 👈 记得加这个！neon 要 edge function
+export const runtime = "edge"; // 👈 neon 要 Edge Runtime
 
 export async function GET() {
 	const databaseUrl = process.env.DATABASE_URL;
@@ -9,26 +9,20 @@ export async function GET() {
 	if (!databaseUrl) {
 		throw new Error("DATABASE_URL is not defined");
 	}
+
 	const sql = neon(databaseUrl);
 
 	try {
-		const reservations = await sql`
-  SELECT
-    "User"."name",
-    "User"."email",
-	"Reservation"."id",
-    "Reservation"."date",
-    "Reservation"."timeSlot"
-  FROM
-    "Reservation"
-  JOIN
-    "User"
-  ON
-    "Reservation"."userId" = "User"."id"
-`; // 👈 表名加双引号！
-		
+		const result = await sql`
+      SELECT COUNT(*) AS "totalReservations"
+      FROM "Reservation"
+    `;
+
+		// neon 返回的是数组，所以取第一个
+		const totalReservations = result[0]?.totalReservations || 0;
+
 		return NextResponse.json(
-			{ success: true, message: reservations },
+			{ success: true, totalReservations },
 			{ status: 200 }
 		);
 	} catch (error) {
