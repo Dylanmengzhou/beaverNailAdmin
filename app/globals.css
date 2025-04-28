@@ -5,116 +5,243 @@ body,
 :root {
 	height: 100svh;
 	width: 100%;
-	--fc-today-bg-color: #ffd7e2;
-	--fc-event-bg-color: #aa336a;
-	--fc-event-border-color: #aa336a;
+	--fc-today-bg-color: rgba(255, 192, 203, 0.2);
+	--fc-event-bg-color: transparent;
+	--fc-event-border-color: transparent;
+	--fc-border-color: #ffd1dc;
+	--fc-button-bg-color: #ff9eaf;
+	--fc-button-border-color: #ff9eaf;
+	--fc-button-hover-bg-color: #ff7b90;
+	--fc-button-hover-border-color: #ff7b90;
+	--fc-button-active-bg-color: #ff7b90;
+	--fc-page-bg-color: #fff8fa;
 }
 
-/* 移动端日历样式优化 */
+/* 全局日历样式 - Y2K风格 */
+.fc {
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	background-color: var(--fc-page-bg-color);
+	border-radius: 16px;
+	box-shadow: 0 4px 20px rgba(255, 182, 193, 0.2);
+	padding: 0.5rem;
+	border: 2px solid #ffd1dc;
+}
+
+/* 标题样式 */
+.fc .fc-toolbar-title {
+	color: #ff6b8b;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	text-shadow: 0px 1px 1px rgba(255, 0, 128, 0.1);
+}
+
+/* 按钮样式 - 韩系cute风格 */
+.fc .fc-button {
+	border-radius: 0px !important;
+	text-transform: lowercase !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.5px !important;
+	margin: 0.1em !important;
+	border-radius: 10px !important;
+	padding: 0.4em 1em !important;
+	box-shadow: 0 2px 5px rgba(255, 105, 180, 0.2) !important;
+	transition: all 0.2s ease !important;
+	border: none !important;
+}
+
+.fc .fc-button:active {
+	transform: translateY(-2px) !important;
+	box-shadow: 0 4px 8px rgba(255, 105, 180, 0.3) !important;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+	background-color: #ff5c7f !important;
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 日历头部样式 */
+.fc-col-header {
+	background: linear-gradient(to right, #ffcbd3, #ffd6e0);
+	border-radius: 10px 10px 0 0;
+}
+
+.fc .fc-col-header-cell-cushion {
+	color: #ff4977;
+	font-weight: 600;
+	text-transform: uppercase;
+	font-size: 0.85em;
+	padding: 8px 4px !important;
+}
+
+/* 日期单元格样式 */
+.fc-daygrid-day {
+	transition: background-color 0.2s ease;
+}
+
+
+
+.fc .fc-daygrid-day-top {
+	justify-content: center;
+	margin-top: 4px;
+}
+
+.fc .fc-daygrid-day-number {
+	color: #ff6b8b;
+	font-size: 0.9em;
+	font-weight: 500;
+	background-color: rgba(255, 255, 255, 0.7);
+	width: 25px;
+	height: 25px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	border-radius: 50%;
+	margin: 2px;
+}
+
+/* 今天样式特殊处理 */
+/* .fc .fc-day-today {
+	background: rgb(225, 210, 255) !important;
+} */
+
+.fc .fc-day-today .fc-daygrid-day-number {
+	background-color: #ff6b8b;
+	color: rgb(255, 255, 255);
+	font-weight: 700;
+}
+
+/* 周末样式 */
+.fc-day-sat, .fc-day-sun {
+	background-color: #fff5f8 !important;
+}
+
+/* 修饰边框 */
+.fc-theme-standard td, .fc-theme-standard th,
+.fc-theme-standard .fc-scrollgrid {
+	border-color: #ffe1e7 !important;
+}
+
+/* 事件样式 - 创意风格 */
+.fc-daygrid-event {
+	border-radius: 8px !important;
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05) !important;
+	margin: 2px 4px !important;
+	overflow: visible !important;
+	transition: transform 0.2s ease !important;
+	cursor: pointer;
+}
+
+.fc-daygrid-event:hover {
+	transform: translateY(-1px) !important;
+}
+
+/* 多事件显示优化 */
+.fc-daygrid-more-link {
+	background: linear-gradient(to right, #ff9eaf, #ffb6c1) !important;
+	color: white !important;
+	border-radius: 12px !important;
+	padding: 2px 8px !important;
+	margin: 2px auto !important;
+	text-align: center;
+	font-weight: 500 !important;
+	box-shadow: 0 2px 4px rgba(255, 105, 180, 0.2) !important;
+	width: fit-content;
+}
+
+.fc-daygrid-more-link:hover {
+	background: linear-gradient(to right, #ff7b90, #ff9eaf) !important;
+}
+
+/* 移动端样式优化 */
 @media (max-width: 767px) {
 	.fc {
 		height: 100svh;
-
+		border-radius: 0;
+		box-shadow: none;
+		border: none;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
 	}
-	.fc .fc-toolbar-title {
-		font-size: 1.1em !important;
+
+	/* 移动工具栏到底部 */
+	.fc .fc-header-toolbar {
+		order: 2;
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 100;
+		margin: 0 !important;
+		box-shadow: 0 -2px 10px rgba(255, 105, 180, 0.15);
 	}
 
 	.fc .fc-toolbar {
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		justify-content: space-between;
+		background: linear-gradient(to right, #ffcbd3, #ffd6e0);
+		padding: 10px;
+		margin-bottom: 0 !important;
 	}
 
-	.fc .fc-daygrid-day-number {
-		font-size: 0.9em;
-		padding: 2px;
-	}
-	.fc .fc-daygrid-day-frame {
-		min-height: 150px;
-	}
-
-	.fc .fc-col-header-cell-cushion {
-		font-size: 0.9em;
-		padding: 2px;
+	.fc .fc-toolbar-title {
+		font-size: 1.1em !important;
+		width: 100%;
+		text-align: center;
 	}
 
 	.fc .fc-button {
-		padding: 0.2em 0.4em;
-		font-size: 1.4em;
+		padding: 0.3em 0.6em !important;
+		font-size: 0.8em !important;
 	}
 
-	/* 优化事件显示 */
+	/* 调整内容区域 */
+	.fc .fc-view-harness {
+		order: 1;
+		padding-bottom: 65px; /* 为底部工具栏留出空间 */
+	}
+
+	.fc .fc-daygrid-day-frame {
+		min-height: 90px;
+		padding: 2px;
+	}
+
+	/* 日期单元格优化 */
+	.fc .fc-daygrid-day-top {
+		padding-top: 2px;
+	}
+
+	.fc .fc-daygrid-day-number {
+		width: 100%;
+		height: 100%;
+		font-size: 0.8em;
+	}
+
+	/* 事件显示优化 */
 	.fc-daygrid-event {
-		margin-top: 1px !important;
-		margin-bottom: 1px !important;
-		padding: 1px 2px !important;
+		margin: 1px 2px !important;
+		padding: 1px !important;
 	}
 
-	/* 优化移动端滚动效果 */
-	.fc-view-harness {
-		overflow-y: auto !important;
-		-webkit-overflow-scrolling: touch !important;
-		max-height: 100vh !important;
-		touch-action: pan-y !important;
+	/* 隐藏移动端滚动条 */
+	.fc .fc-scroller {
+		overflow: hidden !important;
+		-ms-overflow-style: none !important;  /* IE and Edge */
+		scrollbar-width: none !important;  /* Firefox */
 	}
 
-	/* 确保日历容器可滚动 */
-	.fc-scroller {
-		overflow: auto !important;
-		-webkit-overflow-scrolling: touch !important;
-	}
-
-	/* 修复触摸滑动问题 */
-	.fc {
-		touch-action: manipulation !important;
-		-webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
-	}
-
-	/* 确保事件在移动端更紧凑 */
-	.fc-daygrid-day-events {
-		margin-bottom: 0 !important;
+	.fc .fc-scroller::-webkit-scrollbar {
+		display: none !important;  /* Chrome, Safari and Opera */
 	}
 }
 
-/* 通用日历事件样式优化 */
-.fc-daygrid-event {
-	border-radius: 3px !important;
-	font-size: 0.85em !important;
-	line-height: 1.2 !important;
-	white-space: nowrap !important;
-	overflow: hidden !important;
-	text-overflow: ellipsis !important;
+/* 自定义动画效果 */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* 日历容器样式 */
-.calendar-container {
-	width: 100%;
-	overflow: hidden;
-	position: relative;
-}
-
-/* 移动端日历容器特殊样式 */
-.mobile-calendar {
-	touch-action: pan-y;
-	-webkit-overflow-scrolling: touch;
-	overflow-x: hidden;
-	overflow-y: auto;
-	max-width: 100%;
-	margin: 0 auto;
-}
-
-/* 确保事件内容紧凑显示 */
-.fc-daygrid-event .fc-event-title {
-	padding: 0 !important;
-	font-weight: normal !important;
-}
-
-/* 多事件显示优化 */
-.fc-daygrid-more-link {
-	font-size: 0.85em !important;
-	margin-top: 1px !important;
-	padding: 1px !important;
-	background-color: rgba(0, 0, 0, 0.05) !important;
-	border-radius: 3px !important;
+.fc-view-harness {
+  animation: fade-in 0.3s ease forwards;
 }

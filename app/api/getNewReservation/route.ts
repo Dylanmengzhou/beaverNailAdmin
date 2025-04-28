@@ -16,6 +16,7 @@ export async function GET() {
   SELECT
     "User"."name",
     "User"."email",
+    "User"."provider",
 	"Reservation"."id",
     "Reservation"."date",
     "Reservation"."timeSlot"
@@ -25,8 +26,10 @@ export async function GET() {
     "User"
   ON
     "Reservation"."userId" = "User"."id"
+  ORDER BY
+    "Reservation"."date" ASC,
+    "Reservation"."timeSlot" ASC
 `; // 👈 表名加双引号！
-		
 		return NextResponse.json(
 			{ success: true, message: reservations },
 			{ status: 200 }

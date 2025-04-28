@@ -31,6 +31,7 @@ export default function Home() {
 	type ApiReservation = {
 		name: string | null;
 		email: string | null;
+		provider: string | null;
 		id: string;
 		date: string;
 		timeSlot: string;
@@ -43,6 +44,7 @@ export default function Home() {
 		contact: string;
 		date: string;
 		reservationId: string;
+		provider: string;
 	};
 
 	// 状态管理
@@ -62,7 +64,7 @@ export default function Home() {
 				setApiReservations(data.message);
 				console.log("成功获取预约数据:", data.message);
 				toast.success(`成功获取预约数据: ${data.message.length}`, {
-					position: "bottom-center",
+					position: "top-center",
 					duration: 1000,
 				});
 			} else {
@@ -110,8 +112,8 @@ export default function Home() {
 	const apiEventsData: EventData[] = apiReservations.map(
 		(reservation) => {
 			const hour = parseInt(reservation.timeSlot);
-			const nextTwoHour = hour + 2;
-			const formattedTimeSlot = `${hour}:00-${nextTwoHour}:00`;
+			// 只显示几点开始，不显示结束时间
+			const formattedTimeSlot = `${hour}:00`;
 
 			return {
 				user: reservation.name ?? "未知用户",
@@ -119,9 +121,25 @@ export default function Home() {
 				contact: reservation.email ?? "无联系方式",
 				date: formatDate(reservation.date),
 				reservationId: reservation.id,
+				provider: reservation.provider ?? "credentials",
 			};
 		}
 	);
+
+	// 获取provider对应的背景颜色
+	const getProviderBgColor = (provider: string): string => {
+		switch (provider) {
+			case "wechat":
+				return "bg-green-500";
+			case "google":
+				return "bg-blue-500";
+			case "kakao":
+				return "bg-yellow-500";
+			case "credentials":
+			default:
+				return "bg-pink-500";
+		}
+	};
 
 	// 渲染事件内容
 	const renderEventContent = (eventInfo: {
@@ -131,30 +149,38 @@ export default function Home() {
 				timeslot: string;
 				contact: string;
 				reservationId: string;
+				provider: string;
 			};
 		};
 	}) => {
-		const { user, timeslot, contact, reservationId } =
+		const { user, timeslot, contact, reservationId, provider } =
 			eventInfo.event.extendedProps;
 
 		const handleClick = () => {
 			router.push(`/reservation/${reservationId}`);
 		};
 
+		const providerBgColor = getProviderBgColor(provider);
+
 		return (
 			<div
-				className="flex flex-col text-xs leading-tight p-0.5"
+				className={`flex flex-col text-xs p-1 rounded-md ${providerBgColor} text-white`}
 				onClick={handleClick}
 				style={{ cursor: "pointer" }}
 			>
 				{isMobile ? (
-					<div className="flex flex-col text-xs leading-tight p-0.5">
-						<div className="font-medium truncate">{user}</div>
+					<div className="flex flex-col space-y-1 p-0 justify-center items-center">
+						<div className="font-bold text-[10px] truncate w-full text-center">
+							{user}
+						</div>
+						<div className="font-medium text-[8px]">
+							{timeslot}
+						</div>
 					</div>
 				) : (
 					<>
 						<div className="flex justify-between">
-							<div className="font-medium truncate mr-1">{user}</div>
+							<div className="font-semibold truncate mr-1">{user}</div>
 							<div>{timeslot}</div>
 						</div>
 						<div className="flex justify-between">
@@ -178,6 +204,7 @@ export default function Home() {
 			timeslot: event.timeslot,
 			contact: event.contact,
 			reservationId: event.reservationId,
+			provider: event.provider,
 		},
 	}));
 

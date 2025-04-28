@@ -27,6 +27,7 @@ export async function GET(req: Request) {
 				r.id AS "reservationId",
 				u.name,
 				u.email,
+				u.provider,
 				r.date,
 				r."timeSlot"
 			FROM "Reservation" r
@@ -41,6 +42,21 @@ export async function GET(req: Request) {
 				{ status: 404 }
 			);
 		}
+		await fetch("https://botbuilder.larksuite.com/api/trigger-webhook/0a5197fbd746e1eeaf3a0afa1ddb795f" as string, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				msg_type: "text",
+				content: {
+					whoCancelled: "商家取消",
+					username: result[0].name,
+					phone: result[0].email,
+					reservationId: result[0].reservationId,
+					date: new Date(result[0].date),
+					time: result[0].timeSlot,
+				},
+			}),
+		});
 
 		return NextResponse.json(result[0], { status: 200 });
 	} catch (error) {
