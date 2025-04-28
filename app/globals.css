@@ -43,11 +43,17 @@ body,
 	font-weight: 600 !important;
 	letter-spacing: 0.5px !important;
 	margin: 0.1em !important;
+	height: 40px !important;
 	border-radius: 10px !important;
-	padding: 0.4em 1em !important;
+	padding: 0.6em 1.5em !important;
 	box-shadow: 0 2px 5px rgba(255, 105, 180, 0.2) !important;
 	transition: all 0.2s ease !important;
 	border: none !important;
+	width: auto !important;
+	min-width: 45px !important;
+	display: inline-flex !important;
+	justify-content: center !important;
+	align-items: center !important;
 }
 
 .fc .fc-button:active {

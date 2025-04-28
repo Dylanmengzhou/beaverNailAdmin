@@ -218,9 +218,9 @@ export default function Home() {
 				headerToolbar={
 					isMobile
 						? {
-							left: "prev,myRefreshButton", // 👈 加一个刷新按钮
+							left: "prev,next", // 👈 加一个刷新按钮
 							center: "title",
-							right: "today,next",
+							right: "today,myRefreshButton",
 						}
 						: {
 							left: "prev,next today myRefreshButton", // 👈 桌面版也加
