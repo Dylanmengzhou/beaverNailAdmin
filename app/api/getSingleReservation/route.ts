@@ -52,7 +52,7 @@ export async function GET(req: Request) {
 					username: result[0].name,
 					phone: result[0].email,
 					reservationId: result[0].reservationId,
-					date: new Date(result[0].date),
+					date: new Date(result[0].date).toISOString().split('T')[0],
 					time: result[0].timeSlot,
 				},
 			}),
