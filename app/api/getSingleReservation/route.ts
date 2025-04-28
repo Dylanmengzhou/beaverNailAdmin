@@ -42,21 +42,7 @@ export async function GET(req: Request) {
 				{ status: 404 }
 			);
 		}
-		await fetch("https://botbuilder.larksuite.com/api/trigger-webhook/0a5197fbd746e1eeaf3a0afa1ddb795f" as string, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				msg_type: "text",
-				content: {
-					whoCancelled: "商家取消",
-					username: result[0].name,
-					phone: result[0].email,
-					reservationId: result[0].reservationId,
-					date: new Date(result[0].date).toISOString().split('T')[0],
-					time: result[0].timeSlot,
-				},
-			}),
-		});
+
 
 		return NextResponse.json(result[0], { status: 200 });
 	} catch (error) {
@@ -88,13 +74,21 @@ export async function POST(req: Request) {
 	}
 
 	try {
-		const reservationExists = await sql`
-			SELECT COUNT(*)
-			FROM "Reservation"
-			WHERE id = ${reservationid}
+		const result = await sql`
+			SELECT
+				r.id AS "reservationId",
+				u.name,
+				u.email,
+				u.provider,
+				r.date,
+				r."timeSlot"
+			FROM "Reservation" r
+			JOIN "User" u ON r."userId" = u.id
+			WHERE r.id = ${reservationid}
+			LIMIT 1
 		`;
 
-		if (reservationExists[0].count === "0") {
+		if (result.length === 0) {
 			return NextResponse.json(
 				{ success: false, message: "未找到预约" },
 				{ status: 404 }
@@ -105,7 +99,21 @@ export async function POST(req: Request) {
 			DELETE FROM "Reservation"
 			WHERE id = ${reservationid}
 		`;
-
+		await fetch("https://botbuilder.larksuite.com/api/trigger-webhook/0a5197fbd746e1eeaf3a0afa1ddb795f" as string, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				msg_type: "text",
+				content: {
+					whoCancelled: "商家取消",
+					username: result[0].name,
+					phone: result[0].email,
+					reservationId: result[0].reservationId,
+					date: new Date(result[0].date).toISOString().split('T')[0],
+					time: result[0].timeSlot,
+				},
+			}),
+		});
 		return NextResponse.json(
 			{ success: true, message: "删除成功" },
 			{ status: 200 }
