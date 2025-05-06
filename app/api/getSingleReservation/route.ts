@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 export const runtime = "edge"; // 👈 这里对的！
 
+
+// 获取单个预约
 export async function GET(req: Request) {
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
@@ -29,12 +31,14 @@ export async function GET(req: Request) {
 				u.email,
 				u.provider,
 				r.date,
-				r."timeSlot"
+				r."timeSlot",
+				u."contactType"
 			FROM "Reservation" r
 			JOIN "User" u ON r."userId" = u.id
 			WHERE r.id = ${reservationid}
 			LIMIT 1
 		`;
+		console.log(result);
 
 		if (result.length === 0) {
 			return NextResponse.json(
@@ -55,6 +59,10 @@ export async function GET(req: Request) {
 	}
 }
 
+
+
+
+// 删除预约
 export async function POST(req: Request) {
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {

@@ -11,6 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { BsWechat } from "react-icons/bs";
+import { PiPhoneFill } from "react-icons/pi";
+import { MdEmail } from "react-icons/md";
+import { RiKakaoTalkFill } from "react-icons/ri";
+import { BiLogoInstagramAlt } from "react-icons/bi";
+import { LuPenOff } from "react-icons/lu";
 // 定义预约数据类型
 type ReservationData = {
 	user: string;
@@ -19,6 +25,7 @@ type ReservationData = {
 	reservationId: string;
 	date: string;
 	provider: string;
+	contactType: string;
 };
 
 export default function ReservationDetail() {
@@ -51,6 +58,7 @@ export default function ReservationDetail() {
 					reservationId: data.reservationId,
 					date: data.date.split("T")[0],
 					provider: data.provider ?? "credentials",
+					contactType: data.contactType ?? "email",
 				};
 
 				setReservation(formattedData);
@@ -96,6 +104,25 @@ export default function ReservationDetail() {
 				return "账号密码";
 		}
 	};
+
+	const getContactType = (contactType: string): React.ReactNode => {
+		switch (contactType) {
+			case "wechat":
+				return <BsWechat className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center text-white p-2" size={30} />;
+			case "phone":
+				return <PiPhoneFill className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white p-2" size={30} />
+			case "email":
+				return <MdEmail className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white p-2" size={30} />
+			case "Instagram":
+				return <BiLogoInstagramAlt className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white p-2" size={30} />
+			case "kakao":
+				return <RiKakaoTalkFill className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-white p-2" size={30} />
+			default:
+				return <LuPenOff className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white p-2" size={30} />;
+
+		}
+
+	}
 
 	const handleDelete = async () => {
 		try {
@@ -192,9 +219,9 @@ export default function ReservationDetail() {
 						</div>
 
 						<div className="border-b-2 border-dotted border-pink-200 pb-4">
-							<div className="flex items-center mb-2">
-								<div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center mr-3">
-									<span className="text-white text-sm">✉️</span>
+							<div className="flex items-center mb-2 gap-3">
+								<div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
+									<div className="">{getContactType(reservation.contactType)}</div>
 								</div>
 								<h2 className="text-lg font-bold text-gray-700">联系方式</h2>
 							</div>
