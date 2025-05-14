@@ -333,11 +333,7 @@ export default function ReservationDetail() {
   }
 
   return (
-    <div className="container pt-96 mx-auto px-4 pb-10 max-w-2xl min-h-svh bg-gradient-to-b from-pink-50 to-purple-50">
-      <h1 className=" text-3xl pb-10 font-bold  text-center text-pink-600 tracking-wide">
-        预约详情
-      </h1>
-
+    <div className="container mx-auto px-4 pb-10 max-w-2xl min-h-svh bg-gradient-to-b from-pink-50 to-purple-50">
       {loading ? (
         <div className="flex justify-center items-center h-40">
           <div className="animate-pulse flex space-x-2">
@@ -347,236 +343,241 @@ export default function ReservationDetail() {
           </div>
         </div>
       ) : reservation ? (
-        <div className="bg-white shadow-lg rounded-2xl p-6 border-4 border-pink-200 backdrop-blur-sm">
-          <div className="grid grid-cols-1 gap-6">
-            <div className="border-b-2 border-dotted border-pink-200 pb-4">
-              <div className="flex items-center mb-2">
-                <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
-                  <span className="text-white text-sm">ID</span>
-                </div>
-                <h2 className="text-lg font-bold text-gray-700">预约ID</h2>
-              </div>
-              <p className="text-gray-600 pl-11 font-mono text-sm">
-                {reservation.reservationId}
-              </p>
-            </div>
-
-            <div className="border-b-2 border-dotted border-pink-200 pb-4">
-              <div className="flex items-center mb-2">
-                <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center mr-3">
-                  <span className="text-white text-sm">👤</span>
-                </div>
-                <h2 className="text-lg font-bold text-gray-700">客户姓名</h2>
-              </div>
-              <p className="text-gray-600 pl-11 font-medium">
-                {reservation.user ? reservation.user : "未设置"}
-              </p>
-            </div>
-
-            <div className="border-b-2 border-dotted border-pink-200 pb-4">
-              <div className="flex items-center mb-3">
-                <div className="w-8 h-8 rounded-full bg-purple-400 flex items-center justify-center mr-3">
-                  <span className="text-white text-sm">🕒</span>
-                </div>
-                <h2 className="text-lg font-bold text-gray-700">预约时间</h2>
-              </div>
-              <div className="pl-11">
-                <span className="bg-gradient-to-r from-pink-200 to-pink-100 px-3 py-1.5 rounded-full mr-3 inline-block font-medium shadow-sm">
-                  {reservation.date}
-                </span>
-                <span className="bg-gradient-to-r from-blue-200 to-blue-100 px-3 py-1.5 rounded-full inline-block font-medium shadow-sm">
-                  {reservation.timeslot}
-                </span>
-              </div>
-            </div>
-
-            <div className="border-b-2 border-dotted border-pink-200 pb-4">
-              <div className="flex items-center mb-2 gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
-                  <div className="">
-                    {getContactType(reservation.contactType)}
+        <div className="pt-96 md:pt-10">
+          <h1 className=" text-3xl pb-10 font-bold  text-center text-pink-600 tracking-wide">
+            预约详情
+          </h1>
+          <div className="bg-white shadow-lg rounded-2xl p-6 border-4 border-pink-200 backdrop-blur-sm">
+            <div className="grid grid-cols-1 gap-6">
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-2">
+                  <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">ID</span>
                   </div>
+                  <h2 className="text-lg font-bold text-gray-700">预约ID</h2>
                 </div>
-                <h2 className="text-lg font-bold text-gray-700">联系方式</h2>
+                <p className="text-gray-600 pl-11 font-mono text-sm">
+                  {reservation.reservationId}
+                </p>
               </div>
-              <p className="text-gray-600 pl-11 font-medium">
-                {reservation.contact ? reservation.contact : "未设置"}
-              </p>
-            </div>
-            {reservation.altContact !== reservation.contact && (
+
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">👤</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-700">客户姓名</h2>
+                </div>
+                <p className="text-gray-600 pl-11 font-medium">
+                  {reservation.user ? reservation.user : "未设置"}
+                </p>
+              </div>
+
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-400 flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">🕒</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-700">预约时间</h2>
+                </div>
+                <div className="pl-11">
+                  <span className="bg-gradient-to-r from-pink-200 to-pink-100 px-3 py-1.5 rounded-full mr-3 inline-block font-medium shadow-sm">
+                    {reservation.date}
+                  </span>
+                  <span className="bg-gradient-to-r from-blue-200 to-blue-100 px-3 py-1.5 rounded-full inline-block font-medium shadow-sm">
+                    {reservation.timeslot}
+                  </span>
+                </div>
+              </div>
+
               <div className="border-b-2 border-dotted border-pink-200 pb-4">
                 <div className="flex items-center mb-2 gap-3">
                   <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
                     <div className="">
-                      {getContactType(reservation.altContactType)}
+                      {getContactType(reservation.contactType)}
                     </div>
                   </div>
-                  <h2 className="text-lg font-bold text-gray-700">
-                    实际联系方式
-                  </h2>
+                  <h2 className="text-lg font-bold text-gray-700">联系方式</h2>
                 </div>
-                {!isEditing ? (
-                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
-                    <span>{reservation.altContact || "未设置"}</span>
-                    <Button
-                      variant="outline"
-                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
-                      onClick={() => {
-                        setIsEditing(true);
-                        setSelectedContactType(
-                          reservation.altContactType || null
-                        );
-                      }}
-                    >
-                      修改
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-gray-600 font-medium">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Select
-                        defaultValue={reservation.altContactType}
-                        onValueChange={(value) => {
-                          setSelectedContactType(value);
-                          setIsModified(
-                            value !== reservation.altContactType ||
-                              contactValue !== reservation.altContact
-                          );
-                        }}
-                      >
-                        <SelectTrigger className="rounded-full border-none shadow-none outline-none ring-0 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-none hover:border-none active:border-none">
-                          <SelectValue placeholder="选择" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectItem value="wechat">
-                            <BsWechat size={30} className="text-green-500" />
-                          </SelectItem>
-                          <SelectItem value="phone">
-                            <PiPhoneFill
-                              size={30}
-                              className="text-purple-500"
-                            />
-                          </SelectItem>
-                          <SelectItem value="Instagram">
-                            <BiLogoInstagramAlt
-                              size={30}
-                              className="text-pink-500"
-                            />
-                          </SelectItem>
-                          <SelectItem value="kakao">
-                            <RiKakaoTalkFill
-                              size={30}
-                              className="text-yellow-500"
-                            />
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder={
-                          reservation.altContact
-                            ? reservation.altContact
-                            : "未设置"
-                        }
-                        value={contactValue}
-                        onChange={(e) => {
-                          setContactValue(e.target.value);
-                          setIsModified(
-                            (selectedContactType !== null &&
-                              selectedContactType !==
-                                reservation.altContactType) ||
-                              (e.target.value !== "" &&
-                                e.target.value !== reservation.altContact)
-                          );
-                        }}
-                      />
+                <p className="text-gray-600 pl-11 font-medium">
+                  {reservation.contact ? reservation.contact : "未设置"}
+                </p>
+              </div>
+              {reservation.altContact !== reservation.contact && (
+                <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                  <div className="flex items-center mb-2 gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
+                      <div className="">
+                        {getContactType(reservation.altContactType)}
+                      </div>
                     </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
-                        onClick={() => {
-                          if (isModified) {
-                            handleModify();
-                          } else {
-                            setIsEditing(false);
-                          }
-                        }}
-                        disabled={!isModified || isSaving}
-                      >
-                        {isSaving ? (
-                          <div className="flex items-center">
-                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                            <span>处理中...</span>
-                          </div>
-                        ) : (
-                          "确认"
-                        )}
-                      </Button>
+                    <h2 className="text-lg font-bold text-gray-700">
+                      实际联系方式
+                    </h2>
+                  </div>
+                  {!isEditing ? (
+                    <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
+                      <span>{reservation.altContact || "未设置"}</span>
                       <Button
                         variant="outline"
-                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
+                        className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
                         onClick={() => {
-                          setIsEditing(false);
+                          setIsEditing(true);
                           setSelectedContactType(
                             reservation.altContactType || null
                           );
-                          setContactValue(reservation.altContact || "");
-                          setIsModified(false);
                         }}
-                        disabled={isSaving}
                       >
-                        取消
+                        修改
                       </Button>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {reservation.nailArtist && (
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2">
-                  <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
-                    <FaUserNurse className="text-white" size={16} />
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">美甲师</h2>
+                  ) : (
+                    <div className="text-gray-600 font-medium">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Select
+                          defaultValue={reservation.altContactType}
+                          onValueChange={(value) => {
+                            setSelectedContactType(value);
+                            setIsModified(
+                              value !== reservation.altContactType ||
+                                contactValue !== reservation.altContact
+                            );
+                          }}
+                        >
+                          <SelectTrigger className="rounded-full border-none shadow-none outline-none ring-0 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-none hover:border-none active:border-none">
+                            <SelectValue placeholder="选择" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="wechat">
+                              <BsWechat size={30} className="text-green-500" />
+                            </SelectItem>
+                            <SelectItem value="phone">
+                              <PiPhoneFill
+                                size={30}
+                                className="text-purple-500"
+                              />
+                            </SelectItem>
+                            <SelectItem value="Instagram">
+                              <BiLogoInstagramAlt
+                                size={30}
+                                className="text-pink-500"
+                              />
+                            </SelectItem>
+                            <SelectItem value="kakao">
+                              <RiKakaoTalkFill
+                                size={30}
+                                className="text-yellow-500"
+                              />
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder={
+                            reservation.altContact
+                              ? reservation.altContact
+                              : "未设置"
+                          }
+                          value={contactValue}
+                          onChange={(e) => {
+                            setContactValue(e.target.value);
+                            setIsModified(
+                              (selectedContactType !== null &&
+                                selectedContactType !==
+                                  reservation.altContactType) ||
+                                (e.target.value !== "" &&
+                                  e.target.value !== reservation.altContact)
+                            );
+                          }}
+                        />
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
+                          onClick={() => {
+                            if (isModified) {
+                              handleModify();
+                            } else {
+                              setIsEditing(false);
+                            }
+                          }}
+                          disabled={!isModified || isSaving}
+                        >
+                          {isSaving ? (
+                            <div className="flex items-center">
+                              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                              <span>处理中...</span>
+                            </div>
+                          ) : (
+                            "确认"
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
+                          onClick={() => {
+                            setIsEditing(false);
+                            setSelectedContactType(
+                              reservation.altContactType || null
+                            );
+                            setContactValue(reservation.altContact || "");
+                            setIsModified(false);
+                          }}
+                          disabled={isSaving}
+                        >
+                          取消
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-gray-600 pl-11 font-medium">
-                  {reservation.nailArtist || "未分配"}
-                </p>
-              </div>
-            )}
+              )}
+              {reservation.nailArtist && (
+                <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                  <div className="flex items-center mb-2">
+                    <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
+                      <FaUserNurse className="text-white" size={16} />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-700">美甲师</h2>
+                  </div>
+                  <p className="text-gray-600 pl-11 font-medium">
+                    {reservation.nailArtist || "未分配"}
+                  </p>
+                </div>
+              )}
 
-            <div className="pb-2">
-              <div className="flex items-center mb-2">
-                <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center mr-3">
-                  <span className="text-white text-sm">🔑</span>
+              <div className="pb-2">
+                <div className="flex items-center mb-2">
+                  <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">🔑</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-700">登录方式</h2>
                 </div>
-                <h2 className="text-lg font-bold text-gray-700">登录方式</h2>
-              </div>
-              <div className="mt-1 pl-11">
-                <span
-                  className={`px-4 py-1.5 rounded-full text-sm ${getProviderBadgeStyle(
-                    reservation.provider
-                  )} shadow-sm font-medium`}
-                >
-                  {getProviderName(reservation.provider)}
-                </span>
+                <div className="mt-1 pl-11">
+                  <span
+                    className={`px-4 py-1.5 rounded-full text-sm ${getProviderBadgeStyle(
+                      reservation.provider
+                    )} shadow-sm font-medium`}
+                  >
+                    {getProviderName(reservation.provider)}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-8 flex flex-col md:flex-row gap-4 justify-center">
-            <Button className="bg-gradient-to-r from-purple-500 to-pink-600 active:from-purple-600 active:to-pink-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105">
-              <Link href="/calendar" className="">
-                返回日历
-              </Link>
-            </Button>
+            <div className="mt-8 flex flex-col md:flex-row gap-4 justify-center">
+              <Button className="bg-gradient-to-r from-purple-500 to-pink-600 active:from-purple-600 active:to-pink-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105">
+                <Link href="/calendar" className="">
+                  返回日历
+                </Link>
+              </Button>
 
-            <Button
-              className="bg-gradient-to-r from-red-500 to-red-600 active:from-red-600 active:to-red-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105"
-              onClick={() => setOpenDialog(true)}
-            >
-              取消预约
-            </Button>
+              <Button
+                className="bg-gradient-to-r from-red-500 to-red-600 active:from-red-600 active:to-red-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105"
+                onClick={() => setOpenDialog(true)}
+              >
+                取消预约
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
