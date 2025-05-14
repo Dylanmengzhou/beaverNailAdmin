@@ -29,6 +29,8 @@ export async function GET(req: Request) {
 				r.id AS "reservationId",
 				u.name,
 				u.email,
+				u."altContact",
+				u."altContactType",
 				u.provider,
 				r.date,
 				r."timeSlot",
