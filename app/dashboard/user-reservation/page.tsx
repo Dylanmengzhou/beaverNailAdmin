@@ -287,6 +287,7 @@ export default function UserReservationPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          loginUser: currentUser?.username,
           userId: selectedUser.id,
           nailArtistId: selectedNailArtist,
           date: selectedDate,
