@@ -444,7 +444,6 @@ export default function ReservationDetail() {
                         setSelectedContactType(
                           reservation.altContactType || null
                         );
-                        setContactValue(reservation.altContact || "");
                       }}
                     >
                       修改
