@@ -379,24 +379,26 @@ export default function Home() {
                 </div>
 
                 {/* 管理员专属菜单项 */}
-                {currentUser?.memberType === "manager" && (
+                {["manager", "staff"].includes(
+                  currentUser?.memberType ?? ""
+                ) && (
                   <div className="">
-					<div className="border-t-2 border-white rounded-full"></div>
-					<div
-                    className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
-                    onClick={() => {
-                      router.push("/dashboard");
-                      setShowDropdown(false);
-                    }}
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-400 text-white">
-                      💅
+                    <div className="border-t-2 border-white rounded-full"></div>
+                    <div
+                      className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
+                      onClick={() => {
+                        router.push("/dashboard");
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-400 text-white">
+                        💅
+                      </div>
+                      <span className="font-medium text-pink-800">
+                        美甲师管理
+                      </span>
                     </div>
-                    <span className="font-medium text-pink-800">
-                      美甲师管理
-                    </span>
                   </div>
-				  </div>
                 )}
 
                 <div className="border-t-2 border-white rounded-full"></div>

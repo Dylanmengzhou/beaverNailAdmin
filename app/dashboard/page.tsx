@@ -41,8 +41,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (currentUser) {
       // 检查用户权限，如果不是 manager 则返回首页
-      if (currentUser.memberType !== "manager") {
-        toast.error("只有经理才能访问此页面");
+      if (!["manager", "staff"].includes(currentUser.memberType)) {
+        toast.error("只有经理或员工才能访问此页面");
         router.push("/");
       } else {
         // 经理身份验证通过，结束加载状态
@@ -107,18 +107,28 @@ export default function DashboardPage() {
 
             <div className="space-y-4">
               <Button
-                onClick={() => onClick("/dashboard/registerNailArtist")}
-                className="w-full bg-gradient-to-r from-pink-400 to-pink-600 hover:from-pink-500 hover:to-pink-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
+                onClick={() => onClick("/dashboard/user-reservation")}
+                className="w-full bg-gradient-to-r from-blue-400 to-pink-600 hover:from-blue-500 hover:to-pink-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
               >
-                添加美甲师
+                添加预约
               </Button>
+              {currentUser?.memberType === "manager" && (
+                <>
+                  <Button
+                    onClick={() => onClick("/dashboard/registerNailArtist")}
+                    className="w-full bg-gradient-to-r from-pink-400 to-pink-600 hover:from-pink-500 hover:to-pink-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
+                  >
+                    添加美甲师
+                  </Button>
 
-              <Button
-                onClick={() => onClick("/dashboard/deleteNailArtist")}
-                className="w-full bg-gradient-to-r from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
-              >
-                删除美甲师
-              </Button>
+                  <Button
+                    onClick={() => onClick("/dashboard/deleteNailArtist")}
+                    className="w-full bg-gradient-to-r from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
+                  >
+                    删除美甲师
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Y2K风格装饰元素 - 底部装饰 */}
