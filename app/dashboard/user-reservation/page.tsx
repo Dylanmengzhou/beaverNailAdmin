@@ -4,12 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -324,7 +319,7 @@ export default function UserReservationPage() {
 
   // 获取30天后的日期作为最大可选日期
   const maxDate = new Date();
-  maxDate.setDate(maxDate.getDate() + 30);
+  maxDate.setDate(maxDate.getDate() + 365 * 5);
   const maxDateString = maxDate.toISOString().split("T")[0];
 
   // 在组件函数内添加这个辅助函数
