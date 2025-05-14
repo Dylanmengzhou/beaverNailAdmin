@@ -403,133 +403,152 @@ export default function ReservationDetail() {
                   {reservation.contact ? reservation.contact : "未设置"}
                 </p>
               </div>
-              
-                <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                  <div className="flex items-center mb-2 gap-3">
-                    <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
-                      <div className="">
-                        {getContactType(reservation.altContactType)}
-                      </div>
+
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-2 gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
+                    <div className="">
+                      {getContactType(reservation.altContactType)}
                     </div>
-                    <h2 className="text-lg font-bold text-gray-700">
-                      实际联系方式
-                    </h2>
                   </div>
-                  {!isEditing ? (
-                    <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
+                  <h2 className="text-lg font-bold text-gray-700">
+                    实际联系方式
+                  </h2>
+                </div>
+                {!isEditing ? (
+                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
+                    {reservation.altContact &&
+                    (reservation.altContact.startsWith("http://") ||
+                      reservation.altContact.startsWith("https://") ||
+                      reservation.altContact.includes("www.")) ? (
+                      <a
+                        href={
+                          reservation.altContact.startsWith("http")
+                            ? reservation.altContact
+                            : `https://${reservation.altContact}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-700 font-medium underline"
+                      >
+                        主页链接
+                      </a>
+                    ) : (
                       <span>{reservation.altContact || "未设置"}</span>
-                      <Button
-                        variant="outline"
-                        className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
-                        onClick={() => {
-                          setIsEditing(true);
-                          setSelectedContactType(
-                            reservation.altContactType || null
+                    )}
+                    <Button
+                      variant="outline"
+                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
+                      onClick={() => {
+                        setIsEditing(true);
+                        setSelectedContactType(
+                          reservation.altContactType || null
+                        );
+                        setContactValue(reservation.altContact || "");
+                      }}
+                    >
+                      修改
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-gray-600 font-medium">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Select
+                        defaultValue={reservation.altContactType}
+                        onValueChange={(value) => {
+                          setSelectedContactType(value);
+                          setIsModified(
+                            value !== reservation.altContactType ||
+                              contactValue !== reservation.altContact
                           );
                         }}
                       >
-                        修改
+                        <SelectTrigger className="rounded-full border-none shadow-none outline-none ring-0 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-none hover:border-none active:border-none">
+                          <SelectValue placeholder="选择" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="wechat">
+                            <BsWechat size={30} className="text-green-500" />
+                          </SelectItem>
+                          <SelectItem value="phone">
+                            <PiPhoneFill
+                              size={30}
+                              className="text-purple-500"
+                            />
+                          </SelectItem>
+                          <SelectItem value="Instagram">
+                            <BiLogoInstagramAlt
+                              size={30}
+                              className="text-pink-500"
+                            />
+                          </SelectItem>
+                          <SelectItem value="kakao">
+                            <RiKakaoTalkFill
+                              size={30}
+                              className="text-yellow-500"
+                            />
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder={
+                          reservation.altContact
+                            ? reservation.altContact
+                            : "未设置"
+                        }
+                        value={contactValue}
+                        onChange={(e) => {
+                          setContactValue(e.target.value);
+                          setIsModified(
+                            (selectedContactType !== null &&
+                              selectedContactType !==
+                                reservation.altContactType) ||
+                              (e.target.value !== "" &&
+                                e.target.value !== reservation.altContact)
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
+                        onClick={() => {
+                          if (isModified) {
+                            handleModify();
+                          } else {
+                            setIsEditing(false);
+                          }
+                        }}
+                        disabled={!isModified || isSaving}
+                      >
+                        {isSaving ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                            <span>处理中...</span>
+                          </div>
+                        ) : (
+                          "确认"
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setSelectedContactType(
+                            reservation.altContactType || null
+                          );
+                          setContactValue(reservation.altContact || "");
+                          setIsModified(false);
+                        }}
+                        disabled={isSaving}
+                      >
+                        取消
                       </Button>
                     </div>
-                  ) : (
-                    <div className="text-gray-600 font-medium">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Select
-                          defaultValue={reservation.altContactType}
-                          onValueChange={(value) => {
-                            setSelectedContactType(value);
-                            setIsModified(
-                              value !== reservation.altContactType ||
-                                contactValue !== reservation.altContact
-                            );
-                          }}
-                        >
-                          <SelectTrigger className="rounded-full border-none shadow-none outline-none ring-0 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-none hover:border-none active:border-none">
-                            <SelectValue placeholder="选择" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white">
-                            <SelectItem value="wechat">
-                              <BsWechat size={30} className="text-green-500" />
-                            </SelectItem>
-                            <SelectItem value="phone">
-                              <PiPhoneFill
-                                size={30}
-                                className="text-purple-500"
-                              />
-                            </SelectItem>
-                            <SelectItem value="Instagram">
-                              <BiLogoInstagramAlt
-                                size={30}
-                                className="text-pink-500"
-                              />
-                            </SelectItem>
-                            <SelectItem value="kakao">
-                              <RiKakaoTalkFill
-                                size={30}
-                                className="text-yellow-500"
-                              />
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          placeholder={
-                            reservation.altContact
-                              ? reservation.altContact
-                              : "未设置"
-                          }
-                          value={contactValue}
-                          onChange={(e) => {
-                            setContactValue(e.target.value);
-                            setIsModified(
-                              (selectedContactType !== null &&
-                                selectedContactType !==
-                                  reservation.altContactType) ||
-                                (e.target.value !== "" &&
-                                  e.target.value !== reservation.altContact)
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
-                          onClick={() => {
-                            if (isModified) {
-                              handleModify();
-                            } else {
-                              setIsEditing(false);
-                            }
-                          }}
-                          disabled={!isModified || isSaving}
-                        >
-                          {isSaving ? (
-                            <div className="flex items-center">
-                              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                              <span>处理中...</span>
-                            </div>
-                          ) : (
-                            "确认"
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
-                          onClick={() => {
-                            setIsEditing(false);
-                            setSelectedContactType(
-                              reservation.altContactType || null
-                            );
-                            setContactValue(reservation.altContact || "");
-                            setIsModified(false);
-                          }}
-                          disabled={isSaving}
-                        >
-                          取消
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
+              </div>
               {reservation.nailArtist && (
                 <div className="border-b-2 border-dotted border-pink-200 pb-4">
                   <div className="flex items-center mb-2">
