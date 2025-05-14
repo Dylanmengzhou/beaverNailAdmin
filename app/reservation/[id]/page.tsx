@@ -403,7 +403,7 @@ export default function ReservationDetail() {
                   {reservation.contact ? reservation.contact : "未设置"}
                 </p>
               </div>
-              {reservation.altContact !== reservation.contact && (
+              
                 <div className="border-b-2 border-dotted border-pink-200 pb-4">
                   <div className="flex items-center mb-2 gap-3">
                     <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
@@ -530,7 +530,6 @@ export default function ReservationDetail() {
                     </div>
                   )}
                 </div>
-              )}
               {reservation.nailArtist && (
                 <div className="border-b-2 border-dotted border-pink-200 pb-4">
                   <div className="flex items-center mb-2">
