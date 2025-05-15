@@ -12,13 +12,18 @@ export default function Home() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const [buttonOpacity, setButtonOpacity] = useState(1); // 1为完全不透明
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<{
     username: string;
     memberType: string;
   } | null>(null);
+  const calendarRef = useRef<any>(null); // 引用FullCalendar实例
+  const [showDatePicker, setShowDatePicker] = useState(false); // 控制日期选择器显示
+  const [currentYearMonth, setCurrentYearMonth] = useState(""); // 存储当前年月
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    right: 0,
+  }); // 下拉菜单位置
 
   // 格式化日期函数
   const formatDate = (dateString: string) => {
@@ -114,6 +119,26 @@ export default function Home() {
       window.removeEventListener("resize", checkIfMobile);
     };
   }, [checkingAuth, currentUser]);
+
+  // 给FullCalendar的标题添加点击事件
+  useEffect(() => {
+    if (calendarRef.current) {
+      // 等日历渲染完毕后再添加事件监听
+      setTimeout(() => {
+        const titleElement = document.querySelector(".fc-toolbar-title");
+        if (titleElement) {
+          // 添加样式让标题看起来可点击
+          titleElement.classList.add(
+            "cursor-pointer",
+            "hover:text-pink-500",
+            "transition-colors"
+          );
+          // 添加点击事件
+          titleElement.addEventListener("click", handleDateSelect);
+        }
+      }, 500);
+    }
+  }, [calendarRef.current, checkingAuth]);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -244,82 +269,57 @@ export default function Home() {
     },
   }));
 
-  // 处理鼠标移入按钮
-  const handleMouseEnter = () => {
-    // 清除之前的定时器（如果有）
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    // 设置按钮为不透明
-    setButtonOpacity(1);
-  };
-
-  // 处理鼠标移出按钮
-  const handleMouseLeave = () => {
-    // 如果下拉菜单没有显示，则设置定时器在2秒后降低透明度
-    if (!showDropdown) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      timerRef.current = setTimeout(() => {
-        setButtonOpacity(0.2);
-      }, 2000);
-    }
-  };
-
-  // 处理点击按钮
-  const handleButtonClick = () => {
-    // 设置按钮为不透明
-    setButtonOpacity(1);
-    // 切换下拉菜单状态
+  // 处理菜单按钮点击
+  const handleMenuButtonClick = () => {
+    // 简单切换菜单显示状态
     setShowDropdown(!showDropdown);
+  };
 
-    // 如果关闭了菜单，重新开始定时器
-    if (showDropdown) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      timerRef.current = setTimeout(() => {
-        setButtonOpacity(0.2);
-      }, 2000);
+  // 日期选择器相关函数
+  const handleDateSelect = () => {
+    // 获取当前日历显示的年月
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      const currentDate = calendarApi.getDate();
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+      setCurrentYearMonth(`${year}-${month}`);
+    }
+    setShowDatePicker(true);
+  };
+
+  // 关闭日期选择器
+  const handleCloseDatePicker = () => {
+    setShowDatePicker(false);
+  };
+
+  // 处理年月选择改变
+  const handleYearMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value && calendarRef.current) {
+      setCurrentYearMonth(e.target.value);
+      // 获取日历API并导航到选定年月
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.gotoDate(e.target.value + "-01"); // 添加日期，跳转到月份的第一天
+      setShowDatePicker(false);
     }
   };
 
-  // 设置初始定时器
+  // 点击外部关闭下拉菜单
   useEffect(() => {
-    // 初始设置定时器，2秒后降低透明度
-    timerRef.current = setTimeout(() => {
-      setButtonOpacity(0.2);
-    }, 2000);
-
-    // 清理函数
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
       }
     };
-  }, []);
 
-  // 当下拉菜单状态改变时的效果
-  useEffect(() => {
-    // 如果菜单关闭且不在按钮上悬停，设置定时器
-    if (!showDropdown) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      timerRef.current = setTimeout(() => {
-        setButtonOpacity(0.2);
-      }, 2000);
-    } else {
-      // 如果菜单打开，取消定时器并保持按钮不透明
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      setButtonOpacity(1);
-    }
-  }, [showDropdown]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   if (checkingAuth) {
     return (
@@ -332,125 +332,141 @@ export default function Home() {
   return (
     <div className="flex flex-col h-svh justify-center items-center calendar-container">
       <div className="w-full relative">
-        {/* Y2K风格固定按钮 - 右上角 */}
-        <div
-          ref={buttonRef}
-          className="fixed top-4 right-4 z-[9999] transition-opacity duration-700"
-          style={{ opacity: buttonOpacity }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onTouchStart={handleMouseEnter}
-        >
-          {/* 按钮 */}
-          <div className="flex flex-col items-center">
-            {/* Y2K风格按钮 */}
-            <button
-              onClick={handleButtonClick}
-              className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-r from-pink-400 to-purple-300 border-none shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-              style={{
-                boxShadow: "0 0 15px rgba(255, 105, 180, 0.7)",
-              }}
-            >
-              <div className="text-white text-2xl font-bold">≡</div>
-            </button>
-          </div>
-
-          {/* Y2K风格下拉菜单 */}
-          {showDropdown && (
-            <div
-              className="absolute top-16 right-0 z-50 rounded-2xl overflow-hidden border-none"
-              style={{
-                width: "220px",
-                background: "linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%)",
-                boxShadow: "0 0 20px rgba(255, 105, 180, 0.5)",
-              }}
-            >
-              <div className="px-4 py-3 font-bold text-center text-pink-600 border-b-2 border-white bg-gradient-to-r from-pink-200 to-purple-200">
-                ✨ 日历操作菜单 ✨
-              </div>
-
-              <div className="">
-                {/* 显示当前用户信息 */}
-                <div className="px-4 py-2 flex items-center justify-center gap-2 bg-pink-400 ">
-                  <span className="text-sm font-medium text-white">
-                    {currentUser?.username} (
-                    {currentUser?.memberType === "manager" ? "管理员" : "员工"})
-                  </span>
-                </div>
-
-                {/* 管理员专属菜单项 */}
-                {["manager", "staff"].includes(
-                  currentUser?.memberType ?? ""
-                ) && (
-                  <div className="">
-                    <div className="border-t-2 border-white rounded-full"></div>
-                    <div
-                      className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
-                      onClick={() => {
-                        router.push("/dashboard");
-                        setShowDropdown(false);
-                      }}
-                    >
-                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-400 text-white">
-                        💅
-                      </div>
-                      <span className="font-medium text-pink-800">
-                        美甲师管理
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="border-t-2 border-white rounded-full"></div>
-
-                <div
-                  className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
-                  onClick={() => {
-                    localStorage.removeItem("accessToken");
-                    router.push("/");
-                    setShowDropdown(false);
-                  }}
-                >
-                  <div className="w-8 h-8 flex items-center justify-center rounded-full bg-red-400 text-white">
-                    ←
-                  </div>
-                  <span className="font-medium text-pink-800">退出登录</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 点击其他区域关闭下拉菜单 */}
+        {/* 毛玻璃背景效果 */}
         {showDropdown && (
           <div
-            className="fixed inset-0 z-[9998]"
+            className="fixed inset-0 z-[9998] bg-black/30 backdrop-blur-sm"
             onClick={() => setShowDropdown(false)}
           ></div>
         )}
 
+        {/* 下拉菜单 - 页面中间 */}
+        {showDropdown && (
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl overflow-hidden border-none"
+            style={{
+              width: "280px",
+              background: "linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%)",
+              boxShadow: "0 0 20px rgba(255, 105, 180, 0.5)",
+            }}
+          >
+            <div className="px-4 py-3 font-bold text-center text-pink-600 border-b-2 border-white bg-gradient-to-r from-pink-200 to-purple-200">
+              ✨ 日历操作菜单 ✨
+            </div>
+
+            <div className="">
+              {/* 显示当前用户信息 */}
+              <div className="px-4 py-2 flex items-center justify-center gap-2 bg-pink-400 ">
+                <span className="text-sm font-medium text-white">
+                  {currentUser?.username} (
+                  {currentUser?.memberType === "manager" ? "管理员" : "员工"})
+                </span>
+              </div>
+
+              {/* 管理员专属菜单项 */}
+              {["manager", "staff"].includes(currentUser?.memberType ?? "") && (
+                <div className="">
+                  <div className="border-t-2 border-white rounded-full"></div>
+                  <div
+                    className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
+                    onClick={() => {
+                      router.push("/dashboard");
+                      setShowDropdown(false);
+                    }}
+                  >
+                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-400 text-white">
+                      💅
+                    </div>
+                    <span className="font-medium text-pink-800">
+                      美甲师管理
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t-2 border-white rounded-full"></div>
+
+              <div
+                className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
+                onClick={() => {
+                  localStorage.removeItem("accessToken");
+                  router.push("/");
+                  setShowDropdown(false);
+                }}
+              >
+                <div className="w-8 h-8 flex items-center justify-center rounded-full bg-red-400 text-white">
+                  ←
+                </div>
+                <span className="font-medium text-pink-800">退出登录</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 日期选择器弹出层 */}
+        {showDatePicker && (
+          <div className=" fixed inset-0 flex items-center justify-center z-[10000] bg-black/50">
+            <div className="bg-white rounded-lg p-5 max-w-sm w-9/12">
+              <h3 className="text-lg font-medium mb-4 text-center text-pink-600">
+                选择年月
+              </h3>
+
+              <div className="mb-4">
+                <input
+                  type="month"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  onChange={handleYearMonthChange}
+                  value={currentYearMonth}
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleCloseDatePicker}
+                  className="px-4 py-2 bg-pink-500 text-white rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <FullCalendar
+          ref={calendarRef}
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           weekends={true}
           locale={"zh-cn"}
+          dayCellContent={({ date, dayNumberText }) => {
+            // 只显示数字，不显示"日"字
+            return (
+              <div className="fc-daygrid-day-number">{date.getDate()}</div>
+            );
+          }}
           headerToolbar={
             isMobile
               ? {
                   left: "prev,next",
                   center: "title",
-                  right: "today,myRefreshButton",
+                  right: "today,myRefreshButton,menuButton",
                 }
               : {
-                  left: "prev,next today myRefreshButton",
+                  left: "prev,next,today",
                   center: "title",
-                  right: "dayGridMonth,dayGridWeek,dayGridDay",
+                  right:
+                    "dayGridMonth,dayGridWeek,dayGridDay,menuButton",
                 }
           }
           customButtons={{
             myRefreshButton: {
               text: "刷新",
               click: handleGetReservation,
+            },
+            menuButton: {
+              text: "≡",
+              click: handleMenuButtonClick,
             },
           }}
           titleFormat={{
