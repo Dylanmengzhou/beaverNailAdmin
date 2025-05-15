@@ -17,13 +17,9 @@ export default function Home() {
     username: string;
     memberType: string;
   } | null>(null);
-  const calendarRef = useRef<any>(null); // 引用FullCalendar实例
+  const calendarRef = useRef<FullCalendar>(null); // 引用FullCalendar实例
   const [showDatePicker, setShowDatePicker] = useState(false); // 控制日期选择器显示
   const [currentYearMonth, setCurrentYearMonth] = useState(""); // 存储当前年月
-  const [dropdownPosition, setDropdownPosition] = useState({
-    top: 0,
-    right: 0,
-  }); // 下拉菜单位置
 
   // 格式化日期函数
   const formatDate = (dateString: string) => {
@@ -439,7 +435,7 @@ export default function Home() {
           initialView="dayGridMonth"
           weekends={true}
           locale={"zh-cn"}
-          dayCellContent={({ date, dayNumberText }) => {
+          dayCellContent={({ date }) => {
             // 只显示数字，不显示"日"字
             return (
               <div className="fc-daygrid-day-number">{date.getDate()}</div>
@@ -455,8 +451,7 @@ export default function Home() {
               : {
                   left: "prev,next,today",
                   center: "title",
-                  right:
-                    "dayGridMonth,dayGridWeek,dayGridDay,menuButton",
+                  right: "dayGridMonth,dayGridWeek,dayGridDay,menuButton",
                 }
           }
           customButtons={{
