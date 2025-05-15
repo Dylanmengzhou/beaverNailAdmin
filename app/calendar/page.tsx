@@ -14,8 +14,10 @@ export default function Home() {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<{
+    nailArtistId: string;
     username: string;
     memberType: string;
+    nailArtistName: string;
   } | null>(null);
   const calendarRef = useRef<FullCalendar>(null); // 引用FullCalendar实例
   const [showDatePicker, setShowDatePicker] = useState(false); // 控制日期选择器显示
@@ -40,6 +42,7 @@ export default function Home() {
     date: string;
     timeSlot: string;
     nailArtist?: string; // 添加美甲师字段
+    nailArtistId?: string;
   };
 
   // Event 显示的数据类型
@@ -63,10 +66,11 @@ export default function Home() {
       if (!currentUser) return;
 
       const response = await fetch("/api/getNewReservation", {
-        method: "GET",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ loginUser: currentUser }),
       });
       const data = await response.json();
 
@@ -74,11 +78,13 @@ export default function Home() {
         // 根据用户类型过滤预约
         let filteredReservations = data.message;
 
+        console.log("currentUser", currentUser);
+        console.log("reservations", data.message);
         // 如果是staff，只显示分配给自己的预约
         if (currentUser.memberType === "staff") {
           filteredReservations = data.message.filter(
             (reservation: ApiReservation) =>
-              reservation.nailArtist === currentUser.username
+              reservation.nailArtistId === currentUser.nailArtistId
           );
         }
 
@@ -145,10 +151,22 @@ export default function Home() {
       try {
         const tokenParts = token.split(".");
         if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
+          // 使用更安全的方法解码JWT payload
+          const base64Url = tokenParts[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          );
+          const payload = JSON.parse(jsonPayload);
+
           setCurrentUser({
+            nailArtistId: payload.id,
             username: payload.username,
             memberType: payload.memberType,
+            nailArtistName: payload.nailArtistName,
           });
         }
       } catch (error) {
@@ -355,7 +373,7 @@ export default function Home() {
               {/* 显示当前用户信息 */}
               <div className="px-4 py-2 flex items-center justify-center gap-2 bg-pink-400 ">
                 <span className="text-sm font-medium text-white">
-                  {currentUser?.username} (
+                  {currentUser?.nailArtistName} (
                   {currentUser?.memberType === "manager" ? "管理员" : "员工"})
                 </span>
               </div>

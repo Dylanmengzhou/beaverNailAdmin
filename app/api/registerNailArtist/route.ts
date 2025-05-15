@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const { name, role, account, password } = result.data;
     const membertype = "staff";
     // 生成"name-随机字符串"格式的ID
-    const uniqueId = `${name}-id`;
+    const uniqueId = crypto.randomUUID();
 
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {

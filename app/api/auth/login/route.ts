@@ -11,6 +11,7 @@ export async function POST(req: Request) {
         id: "beavernail-id",
         username: "beavernail",
         memberType: "manager",
+        nailArtistName: "beavernail",
       },
       SECRET,
       { expiresIn: "7d" }
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
         id: "beavernail-id",
         username: "beavernail",
         memberType: "manager",
+        nailArtistName: "beavernail",
       },
       SECRET,
       { expiresIn: "14d" }
@@ -35,6 +37,7 @@ export async function POST(req: Request) {
         name: "beavernail",
         account: "beavernail",
         memberType: "manager",
+        nailArtistName: "beavernail",
       },
     });
   }
@@ -52,7 +55,8 @@ export async function POST(req: Request) {
         "NailArtist"."name",
         "NailArtist"."account",
         "NailArtist"."password",
-        "NailArtist"."membertype"
+        "NailArtist"."membertype",
+        "NailArtist"."name" as "nailArtistName"
       FROM
         "NailArtist"
       WHERE
@@ -69,6 +73,7 @@ export async function POST(req: Request) {
           id: nailArtistInfo[0].id,
           username: nailArtistInfo[0].account,
           memberType: nailArtistInfo[0].membertype,
+          nailArtistName: nailArtistInfo[0].nailArtistName,
         },
         SECRET,
         { expiresIn: "7d" }
@@ -79,6 +84,7 @@ export async function POST(req: Request) {
           id: nailArtistInfo[0].id,
           username: nailArtistInfo[0].account,
           memberType: nailArtistInfo[0].membertype,
+          nailArtistName: nailArtistInfo[0].nailArtistName,
         },
         SECRET,
         { expiresIn: "14d" }
@@ -93,6 +99,7 @@ export async function POST(req: Request) {
           name: nailArtistInfo[0].name,
           account: nailArtistInfo[0].account,
           memberType: nailArtistInfo[0].membertype,
+          nailArtistName: nailArtistInfo[0].nailArtistName,
         },
       });
     }
