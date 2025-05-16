@@ -6,6 +6,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { BsFillBalloonHeartFill } from "react-icons/bs";
 
 export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
@@ -372,7 +373,7 @@ export default function Home() {
             <div className="">
               {/* 显示当前用户信息 */}
               <div className="px-4 py-2 flex items-center justify-center gap-2 bg-pink-400 ">
-                <span className="text-sm font-medium text-white">
+                <span className="text-lg font-medium text-white">
                   {currentUser?.nailArtistName} (
                   {currentUser?.memberType === "manager" ? "管理员" : "员工"})
                 </span>
@@ -381,6 +382,25 @@ export default function Home() {
               {/* 管理员专属菜单项 */}
               {["manager", "staff"].includes(currentUser?.memberType ?? "") && (
                 <div className="">
+                  {currentUser?.memberType === "staff" && (
+                    <>
+                      <div className="border-t-2 border-white rounded-full"></div>
+                      <div
+                        className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
+                        onClick={() => {
+                          router.push("/dashboard/changeProfile");
+                          setShowDropdown(false);
+                        }}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-red-600">
+                          <BsFillBalloonHeartFill />
+                        </div>
+                        <span className="font-medium text-pink-800">
+                          个人信息更改
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div className="border-t-2 border-white rounded-full"></div>
                   <div
                     className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"

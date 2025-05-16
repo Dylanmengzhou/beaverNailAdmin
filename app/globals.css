@@ -3,7 +3,7 @@
 html,
 body,
 :root {
-	height: 100svh;
+	/* height: 100%; */
 	width: 100%;
 	--fc-today-bg-color: rgba(255, 192, 203, 0.2);
 	--fc-event-bg-color: transparent;

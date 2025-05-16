@@ -18,7 +18,7 @@ export default function RootLayout({
 				<meta name="theme-color" content="#000000" />
 				<link rel="apple-touch-icon" href="/favicon-512.png" />
 			</head>
-			<body className="bg-white h-svh w-full flex items-center md:block">
+			<body className="bg-white w-full flex items-center md:block">
 				<Toaster richColors />
 				{children}
 			</body>

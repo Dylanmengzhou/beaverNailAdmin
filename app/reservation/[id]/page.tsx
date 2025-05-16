@@ -333,7 +333,7 @@ export default function ReservationDetail() {
   }
 
   return (
-    <div className="container mx-auto px-4 pb-10 max-w-2xl min-h-svh bg-gradient-to-b from-pink-50 to-purple-50">
+    <div className="container mx-auto px-4 pb-10 max-w-2xl min-h-svh bg-gradient-to-b from-pink-50 to-purple-50 flex flex-col items-center justify-center">
       {loading ? (
         <div className="flex justify-center items-center h-40">
           <div className="animate-pulse flex space-x-2">
@@ -343,7 +343,7 @@ export default function ReservationDetail() {
           </div>
         </div>
       ) : reservation ? (
-        <div className="pt-96 md:pt-10">
+        <div className="pt-10">
           <h1 className=" text-3xl pb-10 font-bold  text-center text-pink-600 tracking-wide">
             预约详情
           </h1>
