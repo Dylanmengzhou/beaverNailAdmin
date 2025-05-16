@@ -36,7 +36,8 @@ export async function GET(req: Request) {
 				r."timeSlot",
 				u."contactType",
 				na.name AS "nailArtistName",
-				na.account AS "nailArtistAccount"
+				na.account AS "nailArtistAccount",
+				r."note"
 			FROM "Reservation" r
 			JOIN "User" u ON r."userId" = u.id
 			LEFT JOIN "NailArtist" na ON r."nailArtistId" = na.id

@@ -15,6 +15,7 @@ import { BsWechat } from "react-icons/bs";
 import { PiPhoneFill } from "react-icons/pi";
 import { MdEmail } from "react-icons/md";
 import { RiKakaoTalkFill } from "react-icons/ri";
+import { TbPigMoney } from "react-icons/tb";
 import { BiLogoInstagramAlt } from "react-icons/bi";
 import { LuPenOff } from "react-icons/lu";
 import { FaUserNurse } from "react-icons/fa";
@@ -26,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import axios from "axios";
 
 // 定义预约数据类型
 type ReservationData = {
@@ -39,6 +41,7 @@ type ReservationData = {
   provider: string;
   contactType: string;
   nailArtist?: string;
+  note?: string;
 };
 
 // 定义用户数据类型
@@ -64,6 +67,10 @@ export default function ReservationDetail() {
   const [isModified, setIsModified] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isNoteEditing, setIsNoteEditing] = useState(false);
+  const [isNoteSaving, setIsNoteSaving] = useState(false);
+  const [noteValue, setNoteValue] = useState<string>("");
+  const [isNoteModified, setIsNoteModified] = useState(false);
 
   // 获取当前登录用户信息
   useEffect(() => {
@@ -117,6 +124,7 @@ export default function ReservationDetail() {
           provider: data.provider ?? "credentials",
           contactType: data.contactType ?? "email",
           nailArtist: data.nailArtistName || "",
+          note: data.note || "",
         };
 
         setReservation(formattedData);
@@ -209,7 +217,7 @@ export default function ReservationDetail() {
         );
     }
   };
-  const handleModify = async () => {
+  const handleModifyContact = async () => {
     try {
       if (!currentUser) {
         toast.error("您需要登录才能修改预约", {
@@ -255,6 +263,49 @@ export default function ReservationDetail() {
         duration: 3000,
       });
       setIsSaving(false);
+    }
+  };
+
+  const handleNoteModify = async () => {
+    try {
+      if (!currentUser) {
+        toast.error("您需要登录才能修改备忘录", {
+          position: "top-center",
+          duration: 3000,
+        });
+        router.push("/");
+        return;
+      }
+
+      setIsNoteSaving(true);
+
+      // 这里只进行前端处理，后端API由用户自己实现
+      // 这里模拟API请求的过程
+      const result = await axios.post(`/api/modifyReservationNote`, {
+        reservationid: reservationId,
+        note: noteValue,
+      });
+
+      if (result.status === 200) {
+        toast.success("修改成功", {
+          position: "top-center",
+          duration: 3000,
+        });
+        window.location.reload();
+      } else {
+        toast.error("修改失败，请稍后重试", {
+          position: "top-center",
+          duration: 3000,
+        });
+        setIsNoteSaving(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("修改失败，请稍后重试", {
+        position: "top-center",
+        duration: 3000,
+      });
+      setIsNoteSaving(false);
     }
   };
 
@@ -322,7 +373,7 @@ export default function ReservationDetail() {
   // 如果没有用户信息，显示加载中
   if (!currentUser) {
     return (
-      <div className="container mx-auto p-4 max-w-2xl bg-gradient-to-b from-pink-50 to-purple-50 min-h-screen flex justify-center items-center">
+      <div className="container mx-auto p-4 max-w-2xl md:min-w-screen bg-gradient-to-b from-pink-50 to-purple-50 min-h-screen flex justify-center items-center">
         <div className="animate-pulse flex space-x-2">
           <div className="h-3 w-3 bg-pink-400 rounded-full"></div>
           <div className="h-3 w-3 bg-pink-500 rounded-full"></div>
@@ -333,7 +384,7 @@ export default function ReservationDetail() {
   }
 
   return (
-    <div className="container mx-auto px-4 pb-10 max-w-2xl min-h-svh bg-gradient-to-b from-pink-50 to-purple-50 flex flex-col items-center justify-center">
+    <div className="container mx-auto px-4 pb-10 max-w-2xl md:min-w-screen min-h-svh bg-gradient-to-b from-pink-50 to-purple-50 flex flex-col items-center justify-center">
       {loading ? (
         <div className="flex justify-center items-center h-40">
           <div className="animate-pulse flex space-x-2">
@@ -343,7 +394,7 @@ export default function ReservationDetail() {
           </div>
         </div>
       ) : reservation ? (
-        <div className="pt-10">
+        <div className="pt-10 md:w-8/12">
           <h1 className=" text-3xl pb-10 font-bold  text-center text-pink-600 tracking-wide">
             预约详情
           </h1>
@@ -403,7 +454,82 @@ export default function ReservationDetail() {
                   {reservation.contact ? reservation.contact : "未设置"}
                 </p>
               </div>
-
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-2 gap-3">
+                  <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center ">
+                    <div className="text-white">
+                      <TbPigMoney />
+                    </div>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-700">备忘录</h2>
+                </div>
+                {!isNoteEditing ? (
+                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
+                    <span>{reservation.note || "未设置"}</span>
+                    <Button
+                      variant="outline"
+                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
+                      onClick={() => {
+                        setIsNoteEditing(true);
+                        setNoteValue(reservation.note || "");
+                      }}
+                    >
+                      修改
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-gray-600 font-medium">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        placeholder={
+                          reservation.note ? reservation.note : "请输入备忘录"
+                        }
+                        value={noteValue}
+                        onChange={(e) => {
+                          setNoteValue(e.target.value);
+                          setIsNoteModified(
+                            e.target.value !== (reservation.note || "")
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
+                        onClick={() => {
+                          if (isNoteModified) {
+                            handleNoteModify();
+                          } else {
+                            setIsNoteEditing(false);
+                          }
+                        }}
+                        disabled={!isNoteModified || isNoteSaving}
+                      >
+                        {isNoteSaving ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                            <span>处理中...</span>
+                          </div>
+                        ) : (
+                          "确认"
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
+                        onClick={() => {
+                          setIsNoteEditing(false);
+                          setNoteValue(reservation.note || "");
+                          setIsNoteModified(false);
+                        }}
+                        disabled={isNoteSaving}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="border-b-2 border-dotted border-pink-200 pb-4">
                 <div className="flex items-center mb-2 gap-3">
                   <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
@@ -513,7 +639,7 @@ export default function ReservationDetail() {
                         className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
                         onClick={() => {
                           if (isModified) {
-                            handleModify();
+                            handleModifyContact();
                           } else {
                             setIsEditing(false);
                           }
@@ -561,7 +687,6 @@ export default function ReservationDetail() {
                   </p>
                 </div>
               )}
-
               <div className="pb-2">
                 <div className="flex items-center mb-2">
                   <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center mr-3">
