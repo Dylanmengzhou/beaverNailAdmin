@@ -14,8 +14,9 @@ import { toast } from "sonner";
 import { BsWechat } from "react-icons/bs";
 import { PiPhoneFill } from "react-icons/pi";
 import { MdEmail } from "react-icons/md";
+import { PiNoteBlankFill } from "react-icons/pi";
 import { RiKakaoTalkFill } from "react-icons/ri";
-import { TbPigMoney } from "react-icons/tb";
+import { FaPiggyBank } from "react-icons/fa6";
 import { BiLogoInstagramAlt } from "react-icons/bi";
 import { LuPenOff } from "react-icons/lu";
 import { FaUserNurse } from "react-icons/fa";
@@ -42,6 +43,8 @@ type ReservationData = {
   contactType: string;
   nailArtist?: string;
   note?: string;
+  price?: string;
+  currency?: string;
 };
 
 // 定义用户数据类型
@@ -71,6 +74,11 @@ export default function ReservationDetail() {
   const [isNoteSaving, setIsNoteSaving] = useState(false);
   const [noteValue, setNoteValue] = useState<string>("");
   const [isNoteModified, setIsNoteModified] = useState(false);
+  const [isPriceEditing, setIsPriceEditing] = useState(false);
+  const [isPriceSaving, setIsPriceSaving] = useState(false);
+  const [priceValue, setPriceValue] = useState<string>("");
+  const [currencyValue, setCurrencyValue] = useState<string>("KRW");
+  const [isPriceModified, setIsPriceModified] = useState(false);
 
   // 获取当前登录用户信息
   useEffect(() => {
@@ -125,9 +133,14 @@ export default function ReservationDetail() {
           contactType: data.contactType ?? "email",
           nailArtist: data.nailArtistName || "",
           note: data.note || "",
+          price: data.finalPrice ? String(data.finalPrice) : "",
+          currency: data.currency || "KRW",
         };
 
         setReservation(formattedData);
+        if (data.currency) {
+          setCurrencyValue(data.currency);
+        }
       } catch (error) {
         console.error(error);
         setReservation(null);
@@ -154,6 +167,14 @@ export default function ReservationDetail() {
       default:
         return "bg-pink-500 text-white";
     }
+  };
+
+  // 格式化价格，每隔1000添加逗号
+  const formatPrice = (price: string | number | undefined): string => {
+    if (!price) return "";
+    // 确保价格是字符串类型
+    const priceStr = String(price);
+    return priceStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
   // 获取provider的中文说明
@@ -309,6 +330,66 @@ export default function ReservationDetail() {
     }
   };
 
+  const handlePriceModify = async () => {
+    try {
+      if (!currentUser) {
+        toast.error("您需要登录才能修改交易价格", {
+          position: "top-center",
+          duration: 3000,
+        });
+        router.push("/");
+        return;
+      }
+
+      // 验证价格是否为整数
+      if (!/^\d+$/.test(priceValue)) {
+        toast.error("请输入有效的整数金额", {
+          position: "top-center",
+          duration: 3000,
+        });
+        return;
+      }
+
+      setIsPriceSaving(true);
+
+      try {
+        const result = await axios.post(`/api/modifyReservationPrice`, {
+          reservationid: reservationId,
+          price: priceValue,
+          currency: currencyValue,
+        });
+
+        if (result.status === 200) {
+          toast.success("价格修改成功", {
+            position: "top-center",
+            duration: 3000,
+          });
+          window.location.reload();
+        } else {
+          toast.error("修改失败，请稍后重试", {
+            position: "top-center",
+            duration: 3000,
+          });
+          setIsPriceSaving(false);
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("修改失败，请稍后重试", {
+          position: "top-center",
+          duration: 3000,
+        });
+        setIsPriceSaving(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("修改失败，请稍后重试", {
+        position: "top-center",
+        duration: 3000,
+      });
+      setIsPriceSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     try {
       if (!currentUser) {
@@ -456,9 +537,121 @@ export default function ReservationDetail() {
               </div>
               <div className="border-b-2 border-dotted border-pink-200 pb-4">
                 <div className="flex items-center mb-2 gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center ">
+                    <div className="text-white">
+                      <FaPiggyBank />
+                    </div>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-700">
+                    最终交易价格
+                  </h2>
+                </div>
+                {!isPriceEditing ? (
+                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
+                    <span>
+                      {reservation?.price
+                        ? `${formatPrice(reservation.price)} ${
+                            reservation.currency || "KRW"
+                          }`
+                        : "未设置"}
+                    </span>
+                    <Button
+                      variant="outline"
+                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
+                      onClick={() => {
+                        setIsPriceEditing(true);
+                        setPriceValue(reservation?.price || "");
+                        setCurrencyValue(reservation?.currency || "KRW");
+                      }}
+                    >
+                      修改
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-gray-600 font-medium">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Input
+                        placeholder="请输入整数金额"
+                        value={priceValue}
+                        type="number"
+                        min="0"
+                        step="1"
+                        onChange={(e) => {
+                          // 确保只能输入整数
+                          const value = e.target.value.replace(/\D/g, "");
+                          setPriceValue(value);
+                          setIsPriceModified(
+                            value !== (reservation?.price || "") ||
+                              currencyValue !== (reservation?.currency || "KRW")
+                          );
+                        }}
+                        className="flex-1"
+                      />
+                      <Select
+                        value={currencyValue}
+                        onValueChange={(value) => {
+                          setCurrencyValue(value);
+                          setIsPriceModified(
+                            priceValue !== (reservation?.price || "") ||
+                              value !== (reservation?.currency || "KRW")
+                          );
+                        }}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue placeholder="KRW" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="KRW">KRW</SelectItem>
+                          <SelectItem value="CNY">CNY</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="JPY">JPY</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
+                        onClick={() => {
+                          if (isPriceModified) {
+                            handlePriceModify();
+                          } else {
+                            setIsPriceEditing(false);
+                          }
+                        }}
+                        disabled={!isPriceModified || isPriceSaving}
+                      >
+                        {isPriceSaving ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                            <span>处理中...</span>
+                          </div>
+                        ) : (
+                          "确认"
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
+                        onClick={() => {
+                          setIsPriceEditing(false);
+                          setPriceValue(reservation?.price || "");
+                          setCurrencyValue(reservation?.currency || "KRW");
+                          setIsPriceModified(false);
+                        }}
+                        disabled={isPriceSaving}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-2 gap-3">
                   <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center ">
                     <div className="text-white">
-                      <TbPigMoney />
+                      <PiNoteBlankFill />
                     </div>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">备忘录</h2>
