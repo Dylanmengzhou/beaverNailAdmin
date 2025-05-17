@@ -2,7 +2,6 @@
 
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -138,6 +137,9 @@ export default function Home() {
         const calendarApi = calendarRef.current.getApi();
         calendarApi.changeView(savedView);
         setCalendarView(savedView);
+      } else {
+        // 如果没有保存的视图，设置默认视图
+        setCalendarView("dayGridMonth");
       }
     }
   }, [calendarRef.current, checkingAuth]);
@@ -314,9 +316,7 @@ export default function Home() {
     if (calendarRef.current) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.changeView(viewName);
-      setCalendarView(viewName);
-      // 保存视图设置到localStorage
-      localStorage.setItem("calendarView", viewName);
+      // 注意：视图变化会触发datesSet事件，由事件处理函数更新状态和localStorage
       setShowDropdown(false);
     }
   };
@@ -391,7 +391,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-svh justify-center items-center calendar-container">
+    <div className="flex flex-col justify-center items-center calendar-container">
       <div className="w-full relative">
         {/* 毛玻璃背景效果 */}
         {showDropdown && (
@@ -559,8 +559,8 @@ export default function Home() {
 
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
+          plugins={[dayGridPlugin, interactionPlugin]}
+          initialView={localStorage.getItem("calendarView") || "dayGridMonth"}
           weekends={true}
           locale={"zh-cn"}
           dayCellContent={({ date }) => {
@@ -568,6 +568,14 @@ export default function Home() {
             return (
               <div className="fc-daygrid-day-number">{date.getDate()}</div>
             );
+          }}
+          datesSet={(arg) => {
+            // 只在视图类型发生变化时保存设置
+            if (arg.view.type !== calendarView) {
+              console.log("视图发生变化:", arg.view.type);
+              localStorage.setItem("calendarView", arg.view.type);
+              setCalendarView(arg.view.type);
+            }
           }}
           headerToolbar={
             isMobile
@@ -579,7 +587,7 @@ export default function Home() {
               : {
                   left: "prev,next,today",
                   center: "title",
-                  right: "dayGridMonth,timeGridWeek,timeGridDay,menuButton",
+                  right: "dayGridMonth,dayGridWeek,dayGridDay,menuButton",
                 }
           }
           customButtons={{

@@ -19,7 +19,9 @@ body,
 
 /* 全局日历样式 - Y2K风格 */
 .fc {
-	height: 100svh;
+	height: 100%;
+	
+	min-height: 100svh;
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 	background-color: var(--fc-page-bg-color);
 	border-radius: 16px;
@@ -30,7 +32,7 @@ body,
 
 /* 标题样式 */
 .fc .fc-toolbar-title {
-	color: #ff6b8b;
+	color: white;
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 1px;
@@ -40,8 +42,15 @@ body,
 
 /* 工具栏样式 - 确保在一行显示 */
 .fc .fc-toolbar {
-	flex-wrap: nowrap !important;
+	background-color: #ff5c7f;
+	border-radius: 20px 20px 0 0 !important;
+	padding: 10px;
+	flex-wrap: nowrap !important; 
 	justify-content: space-between !important;
+	margin-bottom: 0 !important;
+	position: sticky !important;
+	top: 0 !important;
+	z-index: 10 !important;
 }
 
 /* 按钮样式 - 韩系cute风格 */
@@ -79,6 +88,9 @@ body,
 .fc-col-header {
 	background: linear-gradient(to right, #ffcbd3, #ffd6e0);
 	border-radius: 10px 10px 0 0;
+	position: sticky !important;
+	top: 56px !important; /* 工具栏高度 + padding */
+	z-index: 9 !important;
 }
 
 .fc .fc-col-header-cell-cushion {
@@ -162,6 +174,20 @@ body,
 	background: linear-gradient(to right, #ff7b90, #ff9eaf) !important;
 }
 
+/* 桌面端样式优化 */
+@media (min-width: 768px) {
+	/* 确保日历内容区域可以滚动 */
+	.fc .fc-view-harness {
+		overflow-y: auto !important;
+		height: calc(100vh - 120px) !important;
+	}
+	
+	/* 确保sticky header正常工作 */
+	.fc-scrollgrid-sync-table {
+		height: auto !important; /* 允许表格根据内容调整高度 */
+	}
+}
+
 /* 移动端样式优化 */
 @media (max-width: 767px) {
 	.fc {
@@ -222,11 +248,11 @@ body,
 		padding-top: 2px;
 	}
 
-	.fc .fc-daygrid-day-number {
+	/* .fc .fc-daygrid-day-number {
 		width: 100%;
 		height: 100%;
 		font-size: 1em;
-	}
+	} */
 
 	/* 事件显示优化 */
 	.fc-daygrid-event {
