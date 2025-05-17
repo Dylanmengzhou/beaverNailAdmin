@@ -6,9 +6,9 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { BsFillBalloonHeartFill } from "react-icons/bs";
-import { SiFreenas } from "react-icons/si"
-import { FaArrowAltCircleLeft } from "react-icons/fa";;
+import { SiAdafruit } from "react-icons/si";
+import { SiFreenas } from "react-icons/si";
+import { FaArrowAltCircleLeft } from "react-icons/fa";
 
 export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
@@ -25,6 +25,8 @@ export default function Home() {
   const calendarRef = useRef<FullCalendar>(null); // 引用FullCalendar实例
   const [showDatePicker, setShowDatePicker] = useState(false); // 控制日期选择器显示
   const [currentYearMonth, setCurrentYearMonth] = useState(""); // 存储当前年月
+  // 添加日历视图状态
+  const [calendarView, setCalendarView] = useState("dayGridMonth");
 
   // 格式化日期函数
   const formatDate = (dateString: string) => {
@@ -124,6 +126,20 @@ export default function Home() {
       window.removeEventListener("resize", checkIfMobile);
     };
   }, [checkingAuth, currentUser]);
+
+  // 从localStorage加载保存的视图设置
+  useEffect(() => {
+    if (calendarRef.current && !checkingAuth) {
+      // 从localStorage获取保存的视图
+      const savedView = localStorage.getItem("calendarView");
+      if (savedView) {
+        // 应用保存的视图
+        const calendarApi = calendarRef.current.getApi();
+        calendarApi.changeView(savedView);
+        setCalendarView(savedView);
+      }
+    }
+  }, [calendarRef.current, checkingAuth]);
 
   // 给FullCalendar的标题添加点击事件
   useEffect(() => {
@@ -292,6 +308,33 @@ export default function Home() {
     setShowDropdown(!showDropdown);
   };
 
+  // 处理日历视图切换
+  const handleViewChange = (viewName: string) => {
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.changeView(viewName);
+      setCalendarView(viewName);
+      // 保存视图设置到localStorage
+      localStorage.setItem("calendarView", viewName);
+      setShowDropdown(false);
+    }
+  };
+
+  // 刷新数据并关闭菜单
+  const handleRefreshData = () => {
+    handleGetReservation();
+    setShowDropdown(false);
+  };
+
+  // 今天按钮处理
+  const handleTodayClick = () => {
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.today();
+      setShowDropdown(false);
+    }
+  };
+
   // 日期选择器相关函数
   const handleDateSelect = () => {
     // 获取当前日历显示的年月
@@ -381,6 +424,50 @@ export default function Home() {
                 </span>
               </div>
 
+              {/* 日历操作按钮 - 移动端专用部分 */}
+              {isMobile && (
+                <>
+                  <div className="border-t-2 border-white rounded-full"></div>
+                  <div className="px-4 py-2">
+                    <div className="font-medium text-pink-800 mb-2 text-center">
+                      日历视图
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      <button
+                        className={`px-2 py-1 text-xs rounded-md ${
+                          calendarView === "dayGridMonth"
+                            ? "bg-pink-500 text-white"
+                            : "bg-pink-100 text-pink-800"
+                        }`}
+                        onClick={() => handleViewChange("dayGridMonth")}
+                      >
+                        这月
+                      </button>
+                      <button
+                        className={`px-2 py-1 text-xs rounded-md ${
+                          calendarView === "dayGridWeek"
+                            ? "bg-pink-500 text-white"
+                            : "bg-pink-100 text-pink-800"
+                        }`}
+                        onClick={() => handleViewChange("dayGridWeek")}
+                      >
+                        这周
+                      </button>
+                      <button
+                        className={`px-2 py-1 text-xs rounded-md ${
+                          calendarView === "dayGridDay"
+                            ? "bg-pink-500 text-white"
+                            : "bg-pink-100 text-pink-800"
+                        }`}
+                        onClick={() => handleViewChange("dayGridDay")}
+                      >
+                        今天
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* 管理员专属菜单项 */}
               {["manager", "staff"].includes(currentUser?.memberType ?? "") && (
                 <div className="">
@@ -394,8 +481,8 @@ export default function Home() {
                           setShowDropdown(false);
                         }}
                       >
-                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-red-600">
-                          <BsFillBalloonHeartFill />
+                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-500 text-white">
+                          <SiAdafruit />
                         </div>
                         <span className="font-medium text-pink-800">
                           个人信息更改
@@ -411,8 +498,8 @@ export default function Home() {
                       setShowDropdown(false);
                     }}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-pink-400 text-white">
-                    <SiFreenas />
+                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-pink-500 text-white">
+                      <SiFreenas />
                     </div>
                     <span className="font-medium text-pink-800">
                       美甲师管理
@@ -426,13 +513,13 @@ export default function Home() {
               <div
                 className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
                 onClick={() => {
-                  localStorage.removeItem("accessToken");
+                  localStorage.clear(); // 清空所有localStorage数据
                   router.push("/");
                   setShowDropdown(false);
                 }}
               >
-                <div className="w-8 h-8 flex items-center justify-center rounded-full bg-red-400 text-white">
-                <FaArrowAltCircleLeft />
+                <div className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 text-white">
+                  <FaArrowAltCircleLeft />
                 </div>
                 <span className="font-medium text-pink-800">退出登录</span>
               </div>
