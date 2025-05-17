@@ -13,12 +13,17 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { BsWechat } from "react-icons/bs";
 import { PiPhoneFill } from "react-icons/pi";
+import { RiHandCoinFill } from "react-icons/ri";
+import { FaFaceGrinSquintTears } from "react-icons/fa6";
 import { MdEmail } from "react-icons/md";
 import { PiNoteBlankFill } from "react-icons/pi";
+import { SiSharp } from "react-icons/si";
+import { BsCalendar2HeartFill } from "react-icons/bs";
 import { RiKakaoTalkFill } from "react-icons/ri";
 import { FaPiggyBank } from "react-icons/fa6";
 import { BiLogoInstagramAlt } from "react-icons/bi";
 import { LuPenOff } from "react-icons/lu";
+import { IoFingerPrintSharp } from "react-icons/io5";
 import { FaUserNurse } from "react-icons/fa";
 import { Input } from "@/components/ui/input";
 import {
@@ -558,7 +563,10 @@ export default function ReservationDetail() {
               <div className="border-b-2 border-dotted border-pink-200 pb-4">
                 <div className="flex items-center mb-2">
                   <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">ID</span>
+                    <span className="text-white text-sm">
+                      <SiSharp />
+                      
+                    </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">预约ID</h2>
                 </div>
@@ -570,7 +578,9 @@ export default function ReservationDetail() {
               <div className="border-b-2 border-dotted border-pink-200 pb-4">
                 <div className="flex items-center mb-2">
                   <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">👤</span>
+                    <span className="text-white text-sm">
+                    <FaFaceGrinSquintTears />
+                    </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">客户姓名</h2>
                 </div>
@@ -581,8 +591,10 @@ export default function ReservationDetail() {
 
               <div className="border-b-2 border-dotted border-pink-200 pb-4">
                 <div className="flex items-center mb-3">
-                  <div className="w-8 h-8 rounded-full bg-purple-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">🕒</span>
+                  <div className="w-8 h-8 rounded-full bg-orange-400 flex items-center justify-center mr-3">
+                    <span className="text-white text-sm">
+                    <BsCalendar2HeartFill />
+                    </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">预约时间</h2>
                 </div>
@@ -611,9 +623,9 @@ export default function ReservationDetail() {
               </div>
               <div className="border-b-2 border-dotted border-pink-200 pb-4">
                 <div className="flex items-center mb-2 gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center ">
+                  <div className="w-8 h-8 rounded-full bg-[#C4A94D] flex items-center justify-center ">
                     <div className="text-white">
-                      <FaPiggyBank />
+                      <RiHandCoinFill />
                     </div>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">
@@ -1053,7 +1065,9 @@ export default function ReservationDetail() {
               <div className="pb-2">
                 <div className="flex items-center mb-2">
                   <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">🔑</span>
+                    <span className="text-white text-sm">
+                    <IoFingerPrintSharp />
+                    </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">登录方式</h2>
                 </div>

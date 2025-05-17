@@ -14,6 +14,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
+import { SiSharp } from "react-icons/si";
+import { IoExtensionPuzzle } from "react-icons/io5";
+import { SiSmugmug } from "react-icons/si";
+import { TbChessQueenFilled } from "react-icons/tb";
 import { Input } from "@/components/ui/input";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -418,7 +422,12 @@ export default function ChangeProfilePage() {
                 className="mb-4"
                 style={{ animation: "floating 3s ease-in-out infinite" }}
               >
-                <div style={{ fontSize: "60px", textAlign: "center" }}>💅</div>
+                <div
+                  className="text-[#FF1493]"
+                  style={{ fontSize: "60px", textAlign: "center" }}
+                >
+                  <SiSmugmug />
+                </div>
               </div>
               <CardTitle
                 className="text-3xl font-bold"
@@ -444,7 +453,9 @@ export default function ChangeProfilePage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel style={labelStyle}>
-                          <span style={{ marginRight: "8px" }}>👑</span>
+                          <span style={{ marginRight: "8px" }}>
+                            <TbChessQueenFilled />
+                          </span>
                           美甲师姓名
                         </FormLabel>
                         <FormControl>
@@ -474,7 +485,9 @@ export default function ChangeProfilePage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel style={labelStyle}>
-                          <span style={{ marginRight: "8px" }}>🔑</span>
+                          <span style={{ marginRight: "8px" }}>
+                            <SiSharp />
+                          </span>
                           账号
                         </FormLabel>
                         <FormControl>
@@ -504,7 +517,9 @@ export default function ChangeProfilePage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel style={labelStyle}>
-                          <span style={{ marginRight: "8px" }}>🔐</span>
+                          <span style={{ marginRight: "8px" }}>
+                            <IoExtensionPuzzle />
+                          </span>
                           当前密码
                         </FormLabel>
                         <FormControl>
@@ -568,7 +583,7 @@ export default function ChangeProfilePage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel style={labelStyle}>
-                              <span style={{ marginRight: "8px" }}>🔏</span>
+                              <span style={{ marginRight: "8px" }}></span>
                               新密码
                             </FormLabel>
                             <FormControl>
@@ -592,7 +607,7 @@ export default function ChangeProfilePage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel style={labelStyle}>
-                              <span style={{ marginRight: "8px" }}>🔒</span>
+                              <span style={{ marginRight: "8px" }}></span>
                               确认密码
                             </FormLabel>
                             <FormControl>

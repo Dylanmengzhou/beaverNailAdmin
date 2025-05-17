@@ -7,6 +7,8 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { BsFillBalloonHeartFill } from "react-icons/bs";
+import { SiFreenas } from "react-icons/si"
+import { FaArrowAltCircleLeft } from "react-icons/fa";;
 
 export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
@@ -409,8 +411,8 @@ export default function Home() {
                       setShowDropdown(false);
                     }}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-400 text-white">
-                      💅
+                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-pink-400 text-white">
+                    <SiFreenas />
                     </div>
                     <span className="font-medium text-pink-800">
                       美甲师管理
@@ -430,7 +432,7 @@ export default function Home() {
                 }}
               >
                 <div className="w-8 h-8 flex items-center justify-center rounded-full bg-red-400 text-white">
-                  ←
+                <FaArrowAltCircleLeft />
                 </div>
                 <span className="font-medium text-pink-800">退出登录</span>
               </div>
