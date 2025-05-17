@@ -39,7 +39,8 @@ export async function GET(req: Request) {
 				na.account AS "nailArtistAccount",
 				r."note",
 				r."finalPrice",
-				r."currency"
+				r."currency",
+				r."depositPaid"
 			FROM "Reservation" r
 			JOIN "User" u ON r."userId" = u.id
 			LEFT JOIN "NailArtist" na ON r."nailArtistId" = na.id

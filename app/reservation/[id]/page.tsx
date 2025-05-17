@@ -45,6 +45,7 @@ type ReservationData = {
   note?: string;
   price?: string;
   currency?: string;
+  depositPaid: boolean | null;
 };
 
 // 定义用户数据类型
@@ -79,6 +80,10 @@ export default function ReservationDetail() {
   const [priceValue, setPriceValue] = useState<string>("");
   const [currencyValue, setCurrencyValue] = useState<string>("KRW");
   const [isPriceModified, setIsPriceModified] = useState(false);
+  const [isDepositEditing, setIsDepositEditing] = useState(false);
+  const [isDepositSaving, setIsDepositSaving] = useState(false);
+  const [depositValue, setDepositValue] = useState<boolean>(false);
+  const [isDepositModified, setIsDepositModified] = useState(false);
 
   // 获取当前登录用户信息
   useEffect(() => {
@@ -135,11 +140,27 @@ export default function ReservationDetail() {
           note: data.note || "",
           price: data.finalPrice ? String(data.finalPrice) : "",
           currency: data.currency || "KRW",
+          depositPaid: data.depositPaid,
         };
 
         setReservation(formattedData);
         if (data.currency) {
           setCurrencyValue(data.currency);
+        }
+        // 只有当depositPaid不是null或undefined时设置状态
+        setDepositValue(data.depositPaid === true);
+
+        // 简化通知逻辑，直接显示通知
+        if (data.depositPaid === false) {
+          toast.error("该预约尚未支付定金", {
+            position: "top-center",
+            duration: 5000,
+          });
+        } else if (data.depositPaid === null) {
+          toast.warning("该预约定金状态未设置", {
+            position: "top-center",
+            duration: 5000,
+          });
         }
       } catch (error) {
         console.error(error);
@@ -390,6 +411,59 @@ export default function ReservationDetail() {
     }
   };
 
+  const handleDepositModify = async () => {
+    try {
+      if (!currentUser) {
+        toast.error("您需要登录才能修改定金状态", {
+          position: "top-center",
+          duration: 3000,
+        });
+        router.push("/");
+        return;
+      }
+
+      setIsDepositSaving(true);
+
+      try {
+        // 打印检查参数信息
+        console.log("修改定金状态，预约ID:", reservationId);
+
+        const result = await axios.post(`/api/modifyDepositStatus`, {
+          reservationId: reservationId, // 改为驼峰命名，与其他API保持一致
+          depositPaid: depositValue,
+        });
+
+        if (result.status === 200) {
+          toast.success("定金状态修改成功", {
+            position: "top-center",
+            duration: 3000,
+          });
+          window.location.reload();
+        } else {
+          toast.error("修改失败，请稍后重试", {
+            position: "top-center",
+            duration: 3000,
+          });
+          setIsDepositSaving(false);
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("修改失败，请稍后重试", {
+          position: "top-center",
+          duration: 3000,
+        });
+        setIsDepositSaving(false);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("修改失败，请稍后重试", {
+        position: "top-center",
+        duration: 3000,
+      });
+      setIsDepositSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     try {
       if (!currentUser) {
@@ -600,7 +674,7 @@ export default function ReservationDetail() {
                         <SelectTrigger className="w-24">
                           <SelectValue placeholder="KRW" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white border-none">
                           <SelectItem value="KRW">KRW</SelectItem>
                           <SelectItem value="CNY">CNY</SelectItem>
                           <SelectItem value="USD">USD</SelectItem>
@@ -640,6 +714,102 @@ export default function ReservationDetail() {
                           setIsPriceModified(false);
                         }}
                         disabled={isPriceSaving}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-2 gap-3">
+                  <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
+                    <div className="text-white">
+                      <FaPiggyBank />
+                    </div>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-700">
+                    是否已付定金
+                  </h2>
+                </div>
+                {!isDepositEditing ? (
+                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
+                    <span>
+                      {reservation?.depositPaid === null ? (
+                        "未设置"
+                      ) : reservation.depositPaid ? (
+                        <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          已付定金
+                        </span>
+                      ) : (
+                        <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                          未付定金
+                        </span>
+                      )}
+                    </span>
+                    <Button
+                      variant="outline"
+                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
+                      onClick={() => {
+                        setIsDepositEditing(true);
+                        setDepositValue(reservation?.depositPaid === true);
+                      }}
+                    >
+                      修改
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-gray-600 font-medium">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Select
+                        value={depositValue ? "true" : "false"}
+                        onValueChange={(value) => {
+                          const newValue = value === "true";
+                          setDepositValue(newValue);
+                          setIsDepositModified(
+                            newValue !== (reservation?.depositPaid === true)
+                          );
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="选择定金状态" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-none">
+                          <SelectItem value="true">已付定金</SelectItem>
+                          <SelectItem value="false">未付定金</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
+                        onClick={() => {
+                          if (isDepositModified) {
+                            handleDepositModify();
+                          } else {
+                            setIsDepositEditing(false);
+                          }
+                        }}
+                        disabled={!isDepositModified || isDepositSaving}
+                      >
+                        {isDepositSaving ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                            <span>处理中...</span>
+                          </div>
+                        ) : (
+                          "确认"
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
+                        onClick={() => {
+                          setIsDepositEditing(false);
+                          setDepositValue(reservation?.depositPaid === true);
+                          setIsDepositModified(false);
+                        }}
+                        disabled={isDepositSaving}
                       >
                         取消
                       </Button>
@@ -784,7 +954,7 @@ export default function ReservationDetail() {
                         <SelectTrigger className="rounded-full border-none shadow-none outline-none ring-0 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-none hover:border-none active:border-none">
                           <SelectValue placeholder="选择" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white">
+                        <SelectContent className="bg-white border-none">
                           <SelectItem value="wechat">
                             <BsWechat size={30} className="text-green-500" />
                           </SelectItem>
