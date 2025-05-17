@@ -321,19 +321,19 @@ export default function Home() {
   };
 
   // 刷新数据并关闭菜单
-  const handleRefreshData = () => {
-    handleGetReservation();
-    setShowDropdown(false);
-  };
+  // const handleRefreshData = () => {
+  //   handleGetReservation();
+  //   setShowDropdown(false);
+  // };
 
   // 今天按钮处理
-  const handleTodayClick = () => {
-    if (calendarRef.current) {
-      const calendarApi = calendarRef.current.getApi();
-      calendarApi.today();
-      setShowDropdown(false);
-    }
-  };
+  // const handleTodayClick = () => {
+  //   if (calendarRef.current) {
+  //     const calendarApi = calendarRef.current.getApi();
+  //     calendarApi.today();
+  //     setShowDropdown(false);
+  //   }
+  // };
 
   // 日期选择器相关函数
   const handleDateSelect = () => {
