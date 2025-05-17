@@ -2,6 +2,7 @@
 
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -558,7 +559,7 @@ export default function Home() {
 
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           weekends={true}
           locale={"zh-cn"}
@@ -578,7 +579,7 @@ export default function Home() {
               : {
                   left: "prev,next,today",
                   center: "title",
-                  right: "dayGridMonth,dayGridWeek,dayGridDay,menuButton",
+                  right: "dayGridMonth,timeGridWeek,timeGridDay,menuButton",
                 }
           }
           customButtons={{
@@ -603,6 +604,23 @@ export default function Home() {
           moreLinkClick="popover"
           fixedWeekCount={false}
           stickyHeaderDates={true}
+          // 自定义视图配置
+          views={{
+            timeGridWeek: {
+              // 自定义列头显示格式，只显示星期几
+              dayHeaderFormat: { weekday: "short" }, // 'short'显示简短的星期几，如"周一"
+            },
+            timeGridDay: {
+              // 调整日视图标题格式
+              titleFormat: { month: "long", day: "numeric", weekday: "long" }, // 如"4月15日 星期一"
+            },
+            dayGridMonth: {
+              // 自定义月视图列头显示
+              dayHeaderFormat: { weekday: "short" }, // 只显示周几，如"周一"
+            },
+          }}
+          // 全局日期格式化选项
+          dayHeaderFormat={{ weekday: "short" }}
         />
       </div>
     </div>
