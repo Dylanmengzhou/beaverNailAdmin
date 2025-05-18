@@ -565,7 +565,6 @@ export default function ReservationDetail() {
                   <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
                     <span className="text-white text-sm">
                       <SiSharp />
-                      
                     </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">预约ID</h2>
@@ -579,7 +578,7 @@ export default function ReservationDetail() {
                 <div className="flex items-center mb-2">
                   <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center mr-3">
                     <span className="text-white text-sm">
-                    <FaFaceGrinSquintTears />
+                      <FaFaceGrinSquintTears />
                     </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">客户姓名</h2>
@@ -593,7 +592,7 @@ export default function ReservationDetail() {
                 <div className="flex items-center mb-3">
                   <div className="w-8 h-8 rounded-full bg-orange-400 flex items-center justify-center mr-3">
                     <span className="text-white text-sm">
-                    <BsCalendar2HeartFill />
+                      <BsCalendar2HeartFill />
                     </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">预约时间</h2>
@@ -764,7 +763,10 @@ export default function ReservationDetail() {
                       className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
                       onClick={() => {
                         setIsDepositEditing(true);
-                        setDepositValue(reservation?.depositPaid === true);
+                        // 如果之前是未设置状态，不要设置默认值
+                        if (reservation?.depositPaid !== null) {
+                          setDepositValue(reservation?.depositPaid === true);
+                        }
                       }}
                     >
                       修改
@@ -774,17 +776,31 @@ export default function ReservationDetail() {
                   <div className="text-gray-600 font-medium">
                     <div className="flex items-center gap-2 mb-2">
                       <Select
-                        value={depositValue ? "true" : "false"}
+                        value={
+                          reservation?.depositPaid === null
+                            ? undefined
+                            : depositValue
+                            ? "true"
+                            : "false"
+                        }
                         onValueChange={(value) => {
                           const newValue = value === "true";
                           setDepositValue(newValue);
+                          // 如果原始状态是null或者新值与原值不同，就应该允许确认
                           setIsDepositModified(
-                            newValue !== (reservation?.depositPaid === true)
+                            reservation?.depositPaid === null ||
+                              newValue !== (reservation?.depositPaid === true)
                           );
                         }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="选择定金状态" />
+                          <SelectValue
+                            placeholder={
+                              reservation?.depositPaid === null
+                                ? "请选择定金状态"
+                                : "选择定金状态"
+                            }
+                          />
                         </SelectTrigger>
                         <SelectContent className="bg-white border-none">
                           <SelectItem value="true">已付定金</SelectItem>
@@ -818,7 +834,10 @@ export default function ReservationDetail() {
                         className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
                         onClick={() => {
                           setIsDepositEditing(false);
-                          setDepositValue(reservation?.depositPaid === true);
+                          // 如果原先存在值，则恢复原值，否则保持空值
+                          if (reservation?.depositPaid !== null) {
+                            setDepositValue(reservation?.depositPaid === true);
+                          }
                           setIsDepositModified(false);
                         }}
                         disabled={isDepositSaving}
@@ -1066,7 +1085,7 @@ export default function ReservationDetail() {
                 <div className="flex items-center mb-2">
                   <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center mr-3">
                     <span className="text-white text-sm">
-                    <IoFingerPrintSharp />
+                      <IoFingerPrintSharp />
                     </span>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">登录方式</h2>
