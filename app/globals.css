@@ -20,15 +20,16 @@ body,
 /* 全局日历样式 - Y2K风格 */
 .fc {
 	height: 100%;
-	
 	min-height: 100svh;
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 	background-color: var(--fc-page-bg-color);
-	border-radius: 16px;
+	/* border-radius: 16px; */
 	box-shadow: 0 4px 20px rgba(255, 182, 193, 0.2);
 	padding: 0.5rem;
-	border: 2px solid #ffd1dc;
+	/* border: 2px solid #ffd1dc; */
 }
+
+
 
 /* 标题样式 */
 .fc .fc-toolbar-title {
@@ -38,11 +39,14 @@ body,
 	letter-spacing: 1px;
 	text-shadow: 0px 1px 1px rgba(255, 0, 128, 0.1);
 	font-size: 1.2em !important;
+	
 }
 
 /* 工具栏样式 - 确保在一行显示 */
 .fc .fc-toolbar {
 	background-color: #ff5c7f;
+	border: 2px solid  #ff5c7f;
+	border-bottom: none;
 	border-radius: 20px 20px 0 0 !important;
 	padding: 10px;
 	flex-wrap: nowrap !important; 
@@ -52,7 +56,11 @@ body,
 	top: 0 !important;
 	z-index: 10 !important;
 }
-
+.fc .fc-view-harness{
+	border: 2px solid #ff5c7f;
+	border-top: none;
+	border-radius: 0 0 16px 16px;
+}
 /* 按钮样式 - 韩系cute风格 */
 .fc .fc-button {
 	border-radius: 0px !important;
@@ -204,16 +212,22 @@ body,
 	.fc .fc-header-toolbar {
 		order: 2;
 		position: fixed;
+		border-radius: 0 !important;
 		bottom: 0;
 		left: 0;
 		right: 0;
 		z-index: 100;
-		margin: 0 !important;
+		/* margin-left: 2px !important; */
+		/* margin-right: 2px !important; */
 		box-shadow: 0 -2px 10px rgba(255, 105, 180, 0.15);
 	}
-
+	.fc .fc-view-harness{
+		border: none;
+	}
 	.fc .fc-toolbar {
 		flex-wrap: nowrap !important;
+		border:none;
+		border-radius:0;
 		gap: 0.5rem;
 		background: linear-gradient(to right, #ffcbd3, #ffd6e0);
 		padding: 10px;
