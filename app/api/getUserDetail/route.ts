@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   // 获取搜索参数
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get("query");
+  const query = searchParams.get("userId");
 
   if (!query || query.trim() === "") {
     return NextResponse.json(
@@ -18,27 +18,24 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   }
+  const today = new Date();
+  const formattedDate = today.toISOString().split('T')[0];
 
   try {
     // 搜索用户
     const users = await sql`
       SELECT 
-        id, 
-        name, 
-        username, 
-        email, 
-        image,
-        gender,
-        provider,
-        "contactType",
-        "altContact",
-        "altContactType",
-        "membershipType"
-      FROM "User"
-      WHERE 
-        (name ILIKE ${`%${query}%`} OR 
-        "altContact" ILIKE ${`%${query}%`} OR 
-        email ILIKE ${`%${query}%`})
+        u.*,
+        GREATEST(u."balance" - COALESCE((
+          SELECT SUM(r2."finalPrice")
+          FROM "Reservation" r2
+          WHERE r2."userId" = u.id 
+          AND r2.date <= ${formattedDate}
+          AND r2."paymentMethod" = 'memberCard'
+          AND r2."finalPrice" IS NOT NULL
+        ), 0), 0) AS "balance"
+      FROM "User" u
+      WHERE id = ${query}
     `;
     console.log(users);
 

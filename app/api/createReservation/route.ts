@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
         "userId", 
         "nailArtistId", 
         "createdAt", 
-        "updatedAt"
+        "updatedAt",
+        "currentMemberShip"
       )
       VALUES (
         ${reservationId}, 
@@ -96,7 +97,8 @@ export async function POST(request: NextRequest) {
         ${userId}, 
         ${nailArtistId}, 
         ${now}, 
-        ${now}
+        ${now},
+        ${user[0].membershipType}
       )
       RETURNING id, date, "timeSlot", "userId", "nailArtistId"
     `;

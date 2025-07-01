@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 
 export async function POST(request: NextRequest) {
-  const { reservationid, price, currency } = await request.json();
+  const { reservationid, price, currency, paymentMethod } = await request.json();
 
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
   try {
     // 更新价格
     await sql`
-  UPDATE "Reservation" SET "finalPrice" = ${price}, "currency" = ${currency} WHERE "id" = ${reservationid}
+  UPDATE "Reservation" SET "finalPrice" = ${price}, "currency" = ${currency}, "paymentMethod" = ${paymentMethod} WHERE "id" = ${reservationid}
 `;
-    console.log(reservationid, price, currency);
+    console.log(reservationid, price, currency, paymentMethod);
     return NextResponse.json({ message: "Price modified" });
   } catch (error) {
     console.error(error);

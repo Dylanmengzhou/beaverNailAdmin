@@ -64,6 +64,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="w-full max-w-4xl flex flex-col md:flex-row bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden shadow-lg border border-pink-200">
+          
           {/* 装饰区域 - 仅在中等尺寸以上显示 */}
           <div className="hidden md:flex md:w-2/5 bg-gradient-to-br from-pink-300 via-pink-200 to-purple-200 p-8 flex-col justify-between items-center">
             <div className="w-full flex justify-center">
@@ -110,7 +111,7 @@ export default function DashboardPage() {
                 onClick={() => onClick("/dashboard/user-reservation")}
                 className="w-full bg-gradient-to-r from-blue-400 to-pink-600 hover:from-blue-500 hover:to-pink-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
               >
-                添加预约
+                用户管理
               </Button>
               {currentUser?.memberType === "manager" && (
                 <>
@@ -126,6 +127,12 @@ export default function DashboardPage() {
                     className="w-full bg-gradient-to-r from-red-400 to-red-600 hover:from-red-500 hover:to-red-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
                   >
                     删除美甲师
+                  </Button>
+                  <Button
+                    onClick={() => onClick("/calendar")}
+                    className="w-full bg-gradient-to-r from-blue-400 to-pink-600 hover:from-blue-500 hover:to-pink-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
+                  >
+                    返回日历
                   </Button>
                 </>
               )}
