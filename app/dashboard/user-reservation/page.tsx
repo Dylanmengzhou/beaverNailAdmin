@@ -98,7 +98,10 @@ export default function UserReservationPage() {
     if (currentUser) {
       // 检查用户权限，如果不是 manager 或 staff 则返回首页
       if (!["manager", "staff"].includes(currentUser.memberType)) {
-        toast.error("只有经理或员工才能访问此页面");
+        toast.error("只有经理或员工才能访问此页面", {
+          duration: 3000,
+          position: "top-center",
+        });
         router.push("/");
       }
     }
@@ -152,7 +155,10 @@ export default function UserReservationPage() {
   // 搜索用户
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      toast.error("请输入搜索关键词");
+      toast.error("请输入搜索关键词", {
+        duration: 3000,
+        position: "top-center",
+      });
       return;
     }
 
@@ -176,11 +182,17 @@ export default function UserReservationPage() {
         const filteredResults = filterUsers(data.users);
         setSearchResults(filteredResults);
       } else {
-        toast.error(data.message || "搜索用户失败");
+        toast.error(data.message || "搜索用户失败", {
+          duration: 3000,
+          position: "top-center",
+        });
       }
     } catch (error) {
       console.error("搜索用户失败:", error);
-      toast.error("搜索用户失败，请稍后再试");
+      toast.error("搜索用户失败，请稍后再试", {
+        duration: 3000,
+        position: "top-center",
+      });
     } finally {
       setIsSearching(false);
     }

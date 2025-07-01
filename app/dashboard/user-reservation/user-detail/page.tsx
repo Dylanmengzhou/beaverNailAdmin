@@ -100,13 +100,61 @@ export default function UserDetailPage() {
   const [userReservations, setUserReservations] = useState<Reservation[]>([]);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
 
-  // 活跃标签页
+  // 活跃标签页 - 从URL参数中读取，如果没有则使用默认值
   const [activeTab, setActiveTab] = useState<
     "reservation" | "recharge" | "member" | "history"
-  >("reservation");
+  >(() => {
+    const tab = searchParams.get("tab") as
+      | "reservation"
+      | "recharge"
+      | "member"
+      | "history";
+    return tab && ["reservation", "recharge", "member", "history"].includes(tab)
+      ? tab
+      : "reservation";
+  });
+
+  // 更新URL参数中的tab
+  const updateTabInUrl = (
+    newTab: "reservation" | "recharge" | "member" | "history"
+  ) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", newTab);
+    // 使用 pushState 代替 router.replace 来避免滚动
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}?${params.toString()}`
+    );
+  };
+
+  // 处理tab切换
+  const handleTabChange = (
+    newTab: "reservation" | "recharge" | "member" | "history",
+    event?: React.MouseEvent
+  ) => {
+    // 阻止默认的滚动行为
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    // 保存当前滚动位置
+    const currentScrollY = window.scrollY;
+
+    setActiveTab(newTab);
+    updateTabInUrl(newTab);
+
+    // 立即恢复滚动位置，防止页面跳转
+    requestAnimationFrame(() => {
+      window.scrollTo(0, currentScrollY);
+    });
+  };
 
   const handleReservationClick = (reservationId: string) => {
-    router.push(`/reservation/${reservationId}`);
+    // 在跳转时保存当前tab状态到URL参数中
+    const params = new URLSearchParams();
+    params.set("returnTab", activeTab);
+    params.set("returnUserId", userId || "");
+    router.push(`/reservation/${reservationId}?${params.toString()}`);
   };
 
   const getPaymentMethodName = (method: string): string => {
@@ -123,22 +171,6 @@ export default function UserDetailPage() {
         return "支付宝";
       default:
         return "未设置";
-    }
-  };
-  const getPaymentMethodColor = (method: string): string => {
-    switch (method) {
-      case "cash":
-        return "text-purple-500";
-      case "memberCard":
-        return "text-amber-500";
-      case "card":
-        return "text-blue-500";
-      case "wechat":
-        return "text-green-500";
-      case "alipay":
-        return "text-blue-500";
-      default:
-        return "text-gray-500";
     }
   };
 
@@ -173,7 +205,7 @@ export default function UserDetailPage() {
         toast.error("只有经理或员工才能访问此页面", {
           duration: 3000,
           position: "top-center",
-        }); 
+        });
         router.push("/");
       }
     }
@@ -391,7 +423,7 @@ export default function UserDetailPage() {
       return;
     }
 
-    const amount = parseFloat(rechargeAmount);
+    const amount = parseInt(rechargeAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error("请输入有效的充值金额", {
         duration: 3000,
@@ -404,7 +436,7 @@ export default function UserDetailPage() {
 
     try {
       // 这里需要调用充值API（需要后端实现）
-      const response = await fetch("/api/recharge", {
+      const response = await fetch("/api/memberCardRecharge", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -417,15 +449,27 @@ export default function UserDetailPage() {
       });
 
       const data = await response.json();
+      console.log("充值API响应:", data);
 
       if (response.ok && data.success) {
-        toast.success("充值成功！");
-        setRechargeAmount("");
-        // 只要充值就自动变成VIP
-        setSelectedUser((prev) =>
-          prev ? { ...prev, membershipType: "vip" } : null
+        toast.success(
+          `充值成功！余额：${data.data.balance} ₩，用户已自动升级为VIP！`,
+          {
+            duration: 3000,
+            position: "top-center",
+          }
         );
-        toast.success("用户已自动升级为VIP！");
+        setRechargeAmount("");
+        // 只要充值就自动变成VIP，同时更新余额
+        setSelectedUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                membershipType: "vip",
+                balance: data.data.balance,
+              }
+            : null
+        );
       } else {
         toast.error(data.message || "充值失败", {
           duration: 3000,
@@ -435,19 +479,23 @@ export default function UserDetailPage() {
     } catch (error) {
       console.error("充值失败:", error);
       // 模拟充值成功（因为后端API可能还没实现）
-      toast.success("充值成功！", {
+      const currentBalance = selectedUser?.balance || 0;
+      const newBalance = currentBalance + amount;
+      toast.success(`充值成功！余额：${newBalance} ₩, 用户已自动升级为VIP！`, {
         duration: 3000,
         position: "top-center",
       });
       setRechargeAmount("");
-      // 只要充值就自动变成VIP
+      // 只要充值就自动变成VIP，同时更新余额
       setSelectedUser((prev) =>
-        prev ? { ...prev, membershipType: "vip" } : null
+        prev
+          ? {
+              ...prev,
+              membershipType: "vip",
+              balance: newBalance,
+            }
+          : null
       );
-      toast.success("用户已自动升级为VIP！", {
-        duration: 3000,
-        position: "top-center",
-      });
     } finally {
       setIsRecharging(false);
     }
@@ -549,6 +597,22 @@ export default function UserDetailPage() {
     }
   };
 
+  // 监听URL参数变化，更新activeTab
+  useEffect(() => {
+    const tab = searchParams.get("tab") as
+      | "reservation"
+      | "recharge"
+      | "member"
+      | "history";
+    if (
+      tab &&
+      ["reservation", "recharge", "member", "history"].includes(tab) &&
+      tab !== activeTab
+    ) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, activeTab]);
+
   // 加载历史预约
   useEffect(() => {
     if (selectedUser && activeTab === "history") {
@@ -629,444 +693,544 @@ export default function UserDetailPage() {
       </div>
 
       {/* 用户信息卡片 */}
-      <Card className="mb-6 sm:mb-8 shadow-md border-pink-100 bg-white">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-pink-600 flex items-center text-lg sm:text-xl">
-            <FaUser className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-            用户信息
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:gap-6">
-            {/* 基本信息 */}
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center space-x-2 mb-1">
-                  <label className="text-sm font-medium text-gray-500">
-                    用户名
-                  </label>
-                  {renderContactIcon(selectedUser.provider)}
-                </div>
-                <p className="text-base sm:text-lg font-medium break-all">
-                  {selectedUser.name || selectedUser.username || "匿名用户"}
-                </p>
-              </div>
+      <div className="mb-6 sm:mb-8 relative">
+        {/* 背景阴影 */}
+        <div className="absolute -inset-2 bg-black/5 rounded-3xl blur-xl"></div>
 
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">
-                  用户设置的联系方式
-                </label>
-                <div className="flex items-center space-x-2">
-                  {renderContactIcon(selectedUser.contactType)}
-                  <span className="text-sm sm:text-base break-all">
-                    {selectedUser.email || "无"}
-                  </span>
-                </div>
-              </div>
+        <div className="relative">
+          {/* 主卡片 */}
+          <div className="bg-white border border-black/10 rounded-3xl shadow-2xl overflow-hidden">
+            {/* 顶部装饰条 */}
+            <div className="h-1 bg-black"></div>
 
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">
-                  真实联系方式
-                </label>
-                <div className="flex items-center space-x-2">
-                  {renderContactIcon(selectedUser.altContactType)}
-                  <span className="text-sm sm:text-base break-all">
-                    {selectedUser.altContact || "无"}
-                  </span>
-                </div>
-              </div>
-            </div>
+            {/* 用户核心信息区域 */}
+            <div className="relative bg-gradient-to-br from-neutral-50 to-stone-50">
+              <div className="relative px-6 sm:px-10 py-8 sm:py-12">
+                <div className="flex flex-col lg:flex-row items-center lg:items-start gap-8">
+                  {/* 用户头像和基本标识 */}
+                  <div className="flex flex-col items-center">
+                    {/* 头像 */}
+                    <div className="relative mb-6">
+                      <div className="absolute -inset-2 bg-black/10 rounded-full blur-md"></div>
+                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 bg-black rounded-full flex items-center justify-center shadow-2xl ring-4 ring-white">
+                        <FaUser className="h-10 w-10 sm:h-14 sm:w-14 text-white" />
+                      </div>
+                      {/* VIP徽章 */}
+                      {selectedUser.membershipType &&
+                        selectedUser.membershipType.toLowerCase() === "vip" && (
+                          <div className="absolute -top-2 -right-2">
+                            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-500 rounded-full flex items-center justify-center ring-4 ring-white shadow-xl">
+                              <FaCrown className="h-5 w-5 text-amber-900" />
+                            </div>
+                          </div>
+                        )}
+                    </div>
 
-            {/* 会员信息 */}
-            <div className="border-t pt-4 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="text-center sm:text-left">
-                  <label className="text-sm font-medium text-gray-500 block mb-2">
-                    当前会员类型
-                  </label>
-                  <div className="flex justify-center sm:justify-start">
-                    {selectedUser.membershipType &&
-                    selectedUser.membershipType.toLowerCase() === "vip" ? (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900">
-                        <FaCrown className="h-4 w-4 mr-1" />
-                        VIP
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                        普通用户
-                      </span>
-                    )}
+                    {/* 会员状态和余额 */}
+                    <div className="flex flex-col items-center gap-4 w-full">
+                      {/* 会员状态徽章 */}
+                      {selectedUser.membershipType &&
+                      selectedUser.membershipType.toLowerCase() === "vip" ? (
+                        <div className="relative px-8 py-3 bg-gradient-to-r from-amber-200 via-amber-300 to-amber-400 rounded-2xl shadow-lg overflow-hidden animate-pulse">
+                          {/* 闪光效果 */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite] translate-x-[-100%]"></div>
+                          <div className="relative flex items-center gap-2">
+                            <FaCrown className="h-5 w-5 text-amber-700 drop-shadow-sm" />
+                            <span className="text-amber-700 font-bold text-lg drop-shadow-sm">
+                              VIP 会员
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-8 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-2 border-gray-200 shadow-md">
+                          <div className="flex items-center gap-2">
+                            <FaUser className="h-4 w-4 text-gray-600" />
+                            <span className="text-gray-700 font-semibold">
+                              普通用户
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 余额卡片 */}
+                      <div className="w-full max-w-xs">
+                        <div className="px-6 py-4 bg-black rounded-2xl shadow-xl border border-gray-800">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-2 mb-1">
+                              <FaCreditCard className="h-4 w-4 text-gray-300" />
+                              <span className="text-gray-300 text-sm font-medium">
+                                账户余额
+                              </span>
+                            </div>
+                            <div className="text-white text-2xl font-bold">
+                              {selectedUser.balance
+                                ? selectedUser.balance.toLocaleString()
+                                : 0}{" "}
+                              ₩
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="text-center sm:text-right">
-                  <label className="text-sm font-medium text-gray-500 block mb-2">
-                    会员卡当前余额
-                  </label>
-                  <div className="flex justify-center sm:justify-end">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-500 text-white">
-                      {selectedUser.balance ? selectedUser.balance : 0} ₩
-                    </span>
+                  {/* 用户详细信息 */}
+                  <div className="flex-1 w-full lg:ml-8">
+                    {/* 用户名 */}
+                    <div className="text-center lg:text-left mb-8">
+                      <h2 className="text-3xl sm:text-4xl font-bold text-black mb-2">
+                        {selectedUser.name ||
+                          selectedUser.username ||
+                          "匿名用户"}
+                      </h2>
+                      <p className="text-gray-600 text-lg font-medium">
+                        用户档案
+                      </p>
+                    </div>
+
+                    {/* 联系信息网格 */}
+                    <div className="space-y-4">
+                      {/* 用户设置的联系方式 */}
+                      <div className="group">
+                        <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-lg">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-md">
+                              <div className="text-white text-lg">
+                                {renderContactIcon(selectedUser.contactType)}
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-bold text-gray-500 mb-1 uppercase tracking-wider">
+                                用户设置的联系方式
+                              </p>
+                              <p className="text-lg font-bold text-black break-all">
+                                {selectedUser.email || "未设置"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 真实联系方式 */}
+                      <div className="group">
+                        <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-lg">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-md">
+                              <div className="text-white text-lg">
+                                {renderContactIcon(selectedUser.altContactType)}
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-bold text-gray-500 mb-1 uppercase tracking-wider">
+                                真实联系方式
+                              </p>
+                              <p className="text-lg font-bold text-black break-all">
+                                {selectedUser.altContact || "未设置"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 注册平台 */}
+                      <div className="group">
+                        <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-lg">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-md">
+                              <div className="text-white text-lg">
+                                {renderContactIcon(selectedUser.provider)}
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-bold text-gray-500 mb-1 uppercase tracking-wider">
+                                注册平台
+                              </p>
+                              <p className="text-lg font-bold text-black">
+                                {selectedUser.provider === "wechat"
+                                  ? "微信"
+                                  : selectedUser.provider === "instagram"
+                                  ? "Instagram"
+                                  : selectedUser.provider === "kakao"
+                                  ? "KakaoTalk"
+                                  : selectedUser.provider === "phone"
+                                  ? "手机号"
+                                  : selectedUser.provider === "email"
+                                  ? "邮箱"
+                                  : selectedUser.provider || "未知"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* 功能标签页 */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex overflow-x-auto scrollbar-hide">
+      <div className="mb-8">
+        <div className="bg-gray-100 rounded-2xl p-2">
+          <nav className="flex gap-1 sm:gap-2">
             <button
-              onClick={() => setActiveTab("reservation")}
-              className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex items-center ${
+              onClick={(e) => handleTabChange("reservation", e)}
+              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
                 activeTab === "reservation"
-                  ? "border-pink-500 text-pink-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "bg-black text-white shadow-lg"
+                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
               }`}
             >
               <FaCalendarAlt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              创建预约
+              <span className="hidden sm:inline">创建预约</span>
+              <span className="sm:hidden">预约</span>
             </button>
             <button
-              onClick={() => setActiveTab("recharge")}
-              className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex items-center ${
+              onClick={(e) => handleTabChange("recharge", e)}
+              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
                 activeTab === "recharge"
-                  ? "border-pink-500 text-pink-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "bg-black text-white shadow-lg"
+                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
               }`}
             >
               <FaCreditCard className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              充值管理
+              <span className="hidden sm:inline">充值管理</span>
+              <span className="sm:hidden">充值</span>
             </button>
             <button
-              onClick={() => setActiveTab("member")}
-              className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex items-center ${
+              onClick={(e) => handleTabChange("member", e)}
+              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
                 activeTab === "member"
-                  ? "border-pink-500 text-pink-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "bg-black text-white shadow-lg"
+                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
               }`}
             >
               <FaCrown className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              会员管理
+              <span className="hidden sm:inline">会员管理</span>
+              <span className="sm:hidden">会员</span>
             </button>
             <button
-              onClick={() => setActiveTab("history")}
-              className={`py-3 px-3 sm:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap flex items-center ${
+              onClick={(e) => handleTabChange("history", e)}
+              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
                 activeTab === "history"
-                  ? "border-pink-500 text-pink-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "bg-black text-white shadow-lg"
+                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
               }`}
             >
               <FaCalendarAlt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              预约历史
+              <span className="hidden sm:inline">预约历史</span>
+              <span className="sm:hidden">历史</span>
             </button>
           </nav>
         </div>
       </div>
 
       {/* 标签页内容 */}
-      {activeTab === "reservation" && (
-        <Card className="shadow-md border-pink-100 bg-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-pink-600 text-lg sm:text-xl">
-              创建预约
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 sm:space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">选择美甲师</label>
-                <Select
-                  value={selectedNailArtist}
-                  onValueChange={setSelectedNailArtist}
-                >
-                  <SelectTrigger className="w-full h-10 sm:h-11">
-                    <SelectValue placeholder="选择美甲师" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {nailArtists.map((artist) => (
-                      <SelectItem key={artist.id} value={artist.id}>
-                        {artist.name} ({artist.role})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">选择日期</label>
-                <Input
-                  type="date"
-                  min={today}
-                  max={maxDateString}
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full h-10 sm:h-11"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">选择时间段</label>
-                <Select
-                  value={selectedTimeSlot}
-                  onValueChange={setSelectedTimeSlot}
-                  disabled={
-                    isLoadingTimeSlots || availableTimeSlots.length === 0
-                  }
-                >
-                  <SelectTrigger className="w-full h-10 sm:h-11">
-                    <SelectValue
-                      placeholder={
-                        isLoadingTimeSlots
-                          ? "加载中..."
-                          : availableTimeSlots.length === 0
-                          ? "请先选择日期和美甲师"
-                          : "选择时间段"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {availableTimeSlots.map((slot) => (
-                      <SelectItem key={slot} value={slot}>
-                        {slot}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  onClick={handleSubmitReservation}
-                  className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white w-full sm:w-auto"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "创建中..." : "创建预约"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === "recharge" && (
-        <Card className="shadow-md border-pink-100 bg-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-pink-600 text-lg sm:text-xl">
-              充值管理
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 sm:space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">充值金额（韩币）</label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="请输入充值金额"
-                  value={rechargeAmount}
-                  onChange={(e) => setRechargeAmount(e.target.value)}
-                  className="w-full h-10 sm:h-11 focus:ring-0 focus-visible:ring-0!"
-                />
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button
-                  onClick={handleRecharge}
-                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white w-full sm:w-auto"
-                  disabled={isRecharging}
-                >
-                  {isRecharging ? "充值中..." : "确认充值"}
-                </Button>
-              </div>
-
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
-                <div className="flex items-center">
-                  <FaCrown className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 mr-2" />
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    VIP升级规则
-                  </h3>
+      <div id="tab-content">
+        {activeTab === "reservation" && (
+          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
+            <CardHeader className="pb-6 border-b border-gray-100">
+              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
+                  <FaCalendarAlt className="h-4 w-4 text-white" />
                 </div>
-                <p className="mt-1 text-xs sm:text-sm text-yellow-700">
-                  任意金额充值即可自动升级为VIP会员，享受专属服务和优惠
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === "member" && (
-        <Card className="shadow-md border-pink-100 bg-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-pink-600 text-lg sm:text-xl">
-              会员管理
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 sm:space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">选择会员类型</label>
-                <Select
-                  value={selectedUser.membershipType || "free"}
-                  onValueChange={(value) => handleChangeMemberType(value)}
-                  disabled={isChangingMemberType}
-                >
-                  <SelectTrigger className="w-full h-10 sm:h-11">
-                    <SelectValue placeholder="选择会员类型" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="vip">VIP会员</SelectItem>
-                    <SelectItem value="free">普通用户</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                <div className="flex items-center">
-                  <FaCrown className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mr-2" />
-                  <h3 className="text-sm font-medium text-blue-800">
-                    会员类型管理
-                  </h3>
+                创建预约
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">选择美甲师</label>
+                  <Select
+                    value={selectedNailArtist}
+                    onValueChange={setSelectedNailArtist}
+                  >
+                    <SelectTrigger className="w-full h-10 sm:h-11">
+                      <SelectValue placeholder="选择美甲师" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {nailArtists.map((artist) => (
+                        <SelectItem key={artist.id} value={artist.id}>
+                          {artist.name} ({artist.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <p className="mt-1 text-xs sm:text-sm text-blue-700">
-                  可以随时更改用户的会员类型，VIP会员享受专属服务和优惠
-                </p>
-              </div>
 
-              {isChangingMemberType && (
-                <div className="text-center py-4">
-                  <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="text-sm text-gray-500 mt-2">更改中...</p>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">选择日期</label>
+                  <Input
+                    type="date"
+                    min={today}
+                    max={maxDateString}
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full h-10 sm:h-11"
+                  />
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {activeTab === "history" && (
-        <Card className="shadow-md border-pink-100 bg-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-pink-600 text-lg sm:text-xl">
-              预约历史
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingReservations ? (
-              <div className="text-center py-8">
-                <div className="w-8 h-8 border-4 border-pink-400 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-                <p className="text-gray-500">加载预约历史中...</p>
-              </div>
-            ) : userReservations.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">暂无预约记录</p>
-              </div>
-            ) : (
-              <div className="space-y-3 sm:space-y-4">
-                {userReservations.map((reservation) => (
-                  <div
-                    key={reservation.reservationId}
-                    className="border rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() =>
-                      handleReservationClick(reservation.reservationId)
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">选择时间段</label>
+                  <Select
+                    value={selectedTimeSlot}
+                    onValueChange={setSelectedTimeSlot}
+                    disabled={
+                      isLoadingTimeSlots || availableTimeSlots.length === 0
                     }
                   >
-                    <div className="space-y-3">
-                      {/* 第一行：日期和时间 */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-sm sm:text-base">
-                            {new Date(reservation.date).toLocaleDateString()}
-                          </span>
-                          <span className="text-gray-500 text-sm">
-                            {reservation.timeSlot}
-                          </span>
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              reservation.depositPaid
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {reservation.depositPaid ? "已付定金" : "未付定金"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {reservation.finalPrice ? (
-                            <p className="font-medium text-green-600 text-sm sm:text-base">
-                              {reservation.finalPrice} ₩
-                            </p>
-                          ) : (
-                            <p className="text-xs sm:text-sm text-gray-600">
-                              未设置
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-500">
-                            ID: {reservation.reservationId.slice(-8)}
-                          </p>
-                        </div>
-                      </div>
+                    <SelectTrigger className="w-full h-10 sm:h-11">
+                      <SelectValue
+                        placeholder={
+                          isLoadingTimeSlots
+                            ? "加载中..."
+                            : availableTimeSlots.length === 0
+                            ? "请先选择日期和美甲师"
+                            : "选择时间段"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {availableTimeSlots.map((slot) => (
+                        <SelectItem key={slot} value={slot}>
+                          {slot}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                      {/* 第二行：美甲师和会员状态 */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <p className="text-xs sm:text-sm text-gray-600">
-                          美甲师：{reservation.nailArtistName || "未分配"}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          {reservation.currentMemberShip === "vip" ? (
-                            <span className="text-xs px-2 py-1 text-white bg-amber-500 rounded-full">
-                              会员
+                <div className="flex justify-end pt-4">
+                  <Button
+                    onClick={handleSubmitReservation}
+                    className="bg-black hover:bg-gray-800 text-white w-full sm:w-auto px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "创建中..." : "创建预约"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "recharge" && (
+          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
+            <CardHeader className="pb-6 border-b border-gray-100">
+              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
+                  <FaCreditCard className="h-4 w-4 text-white" />
+                </div>
+                充值管理
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    充值金额（韩币）
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="请输入充值金额"
+                    value={rechargeAmount}
+                    onChange={(e) => setRechargeAmount(e.target.value)}
+                    className="w-full h-10 sm:h-11 focus:ring-0 focus-visible:ring-0!"
+                  />
+                </div>
+                <div className="flex justify-end pt-4">
+                  <Button
+                    onClick={handleRecharge}
+                    className="bg-black hover:bg-gray-800 text-white w-full sm:w-auto px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300"
+                    disabled={isRecharging}
+                  >
+                    {isRecharging ? "充值中..." : "确认充值"}
+                  </Button>
+                </div>
+
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 sm:p-5">
+                  <div className="flex items-center">
+                    <FaCrown className="h-5 w-5 text-amber-600 mr-3" />
+                    <h3 className="text-base font-bold text-amber-800">
+                      VIP升级规则
+                    </h3>
+                  </div>
+                  <p className="mt-2 text-sm text-amber-700 leading-relaxed">
+                    任意金额充值即可自动升级为VIP会员，享受专属服务和优惠
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "member" && (
+          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
+            <CardHeader className="pb-6 border-b border-gray-100">
+              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
+                  <FaCrown className="h-4 w-4 text-white" />
+                </div>
+                会员管理
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">选择会员类型</label>
+                  <Select
+                    value={selectedUser.membershipType || "free"}
+                    onValueChange={(value) => handleChangeMemberType(value)}
+                    disabled={isChangingMemberType}
+                  >
+                    <SelectTrigger className="w-full h-10 sm:h-11">
+                      <SelectValue placeholder="选择会员类型" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="vip">VIP会员</SelectItem>
+                      <SelectItem value="free">普通用户</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 sm:p-5">
+                  <div className="flex items-center">
+                    <FaCrown className="h-5 w-5 text-gray-700 mr-3" />
+                    <h3 className="text-base font-bold text-gray-800">
+                      会员类型管理
+                    </h3>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-700 leading-relaxed">
+                    可以随时更改用户的会员类型，VIP会员享受专属服务和优惠
+                  </p>
+                </div>
+
+                {isChangingMemberType && (
+                  <div className="text-center py-4">
+                    <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">更改中...</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "history" && (
+          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
+            <CardHeader className="pb-6 border-b border-gray-100">
+              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
+                  <FaCalendarAlt className="h-4 w-4 text-white" />
+                </div>
+                预约历史
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingReservations ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-4 border-pink-400 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+                  <p className="text-gray-500">加载预约历史中...</p>
+                </div>
+              ) : userReservations.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">暂无预约记录</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {userReservations.map((reservation) => (
+                    <div
+                      key={reservation.reservationId}
+                      className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all duration-200"
+                      onClick={() =>
+                        handleReservationClick(reservation.reservationId)
+                      }
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        {/* 左侧信息 */}
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="text-base font-semibold text-black">
+                              {new Date(reservation.date).toLocaleDateString()}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {reservation.timeSlot}
+                            </div>
+                            <div
+                              className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                reservation.depositPaid
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-yellow-100 text-yellow-700"
+                              }`}
+                            >
+                              {reservation.depositPaid
+                                ? "已付定金"
+                                : "未付定金"}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-sm text-gray-600">
+                            <span>
+                              美甲师：{reservation.nailArtistName || "未分配"}
                             </span>
-                          ) : (
-                            <span className="text-xs px-2 py-1 text-white bg-gray-500 rounded-full">
-                              普通用户
-                            </span>
+                            {reservation.currentMemberShip === "vip" && (
+                              <span className="inline-flex items-center gap-1 text-amber-600">
+                                <FaCrown className="h-3 w-3" />
+                                VIP
+                              </span>
+                            )}
+                            {reservation.paymentMethod && (
+                              <span className="text-blue-600">
+                                {getPaymentMethodName(
+                                  reservation.paymentMethod
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          {reservation.note && (
+                            <div className="text-sm text-gray-600">
+                              备注：{reservation.note}
+                            </div>
                           )}
-                        </div>
-                      </div>
 
-                      {/* 第三行：备注（如果有） */}
-                      {reservation.note && (
-                        <p className="text-xs sm:text-sm text-gray-600 break-all">
-                          备注：{reservation.note}
-                        </p>
-                      )}
-
-                      {/* 第四行：余额和支付方式信息 */}
-                      {(reservation.balance !== undefined ||
-                        reservation.paymentMethod) && (
-                        <div className="flex flex-col gap-1">
                           {typeof reservation.balance !== "undefined" &&
                             reservation.currentMemberShip?.toLowerCase() ===
                               "vip" &&
                             reservation.paymentMethod === "memberCard" && (
-                              <p className="text-xs sm:text-sm text-blue-600">
+                              <div className="text-xs text-blue-600">
                                 结算前余额：{reservation.balance} ₩
-                              </p>
+                              </div>
                             )}
-                          {reservation.paymentMethod && (
-                            <p
-                              className={`text-xs sm:text-sm ${getPaymentMethodColor(
-                                reservation.paymentMethod
-                              )}`}
-                            >
-                              支付方式：
-                              {getPaymentMethodName(reservation.paymentMethod)}
-                            </p>
-                          )}
                         </div>
-                      )}
+
+                        {/* 右侧价格和ID */}
+                        <div className="flex flex-col items-end gap-1">
+                          {reservation.finalPrice ? (
+                            <div className="text-lg font-bold text-green-600">
+                              {reservation.finalPrice} ₩
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">
+                              价格未设置
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-400">
+                            #{reservation.reservationId.slice(-8)}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

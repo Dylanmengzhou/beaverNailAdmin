@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -68,6 +68,9 @@ export default function ReservationDetail() {
   const params = useParams();
   const router = useRouter();
   const reservationId = params.id as string;
+
+  // 获取URL参数
+  const urlSearchParams = useSearchParams();
   const [reservation, setReservation] = useState<ReservationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -93,6 +96,24 @@ export default function ReservationDetail() {
   const [depositValue, setDepositValue] = useState<boolean>(false);
   const [isDepositModified, setIsDepositModified] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+
+  // 智能返回函数
+  const handleSmartBack = () => {
+    if (urlSearchParams) {
+      const returnTab = urlSearchParams.get("returnTab");
+      const returnUserId = urlSearchParams.get("returnUserId");
+
+      if (returnTab && returnUserId) {
+        // 返回到用户详情页面的指定tab
+        router.push(
+          `/dashboard/user-reservation/user-detail?userId=${returnUserId}&tab=${returnTab}`
+        );
+        return;
+      }
+    }
+    // 默认返回行为
+    router.back();
+  };
 
   // 获取当前登录用户信息
   useEffect(() => {
@@ -622,7 +643,14 @@ export default function ReservationDetail() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-gray-700">
+                    <h2
+                      className="text-lg font-bold text-gray-700"
+                      onClick={() => {
+                        router.push(
+                          `/dashboard/user-reservation/user-detail?userId=${reservation.userId}`
+                        );
+                      }}
+                    >
                       客户姓名
                     </h2>
                     {reservation.currentMemberShip?.toLowerCase() === "vip" ? (
@@ -691,30 +719,31 @@ export default function ReservationDetail() {
                     </p>
                   </div>
                 )}
-              {reservation?.price && reservation?.currentMemberShip === "vip" && (
-                <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                  <div className="flex items-center mb-2 gap-3">
-                    <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
-                      <div className="text-white">
-                        <FaPiggyBank />
+              {reservation?.price &&
+                reservation?.currentMemberShip === "vip" && (
+                  <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                    <div className="flex items-center mb-2 gap-3">
+                      <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
+                        <div className="text-white">
+                          <FaPiggyBank />
+                        </div>
                       </div>
+                      <h2 className="text-lg font-bold text-gray-700">
+                        本次结余后余额
+                      </h2>
                     </div>
-                    <h2 className="text-lg font-bold text-gray-700">
-                      本次结余后余额
-                    </h2>
+                    <p className="text-gray-600 pl-11 font-medium">
+                      {reservation.balance &&
+                      reservation.paymentMethod === "memberCard"
+                        ? `${formatPrice(
+                            reservation.balance - Number(reservation.price)
+                          )} ${reservation.currency || "KRW"}`
+                        : `${formatPrice(reservation?.balance || 0)} ${
+                            reservation.currency || "KRW"
+                          }`}
+                    </p>
                   </div>
-                  <p className="text-gray-600 pl-11 font-medium">
-                    {reservation.balance &&
-                    reservation.paymentMethod === "memberCard"
-                      ? `${formatPrice(
-                          reservation.balance - Number(reservation.price)
-                        )} ${reservation.currency || "KRW"}`
-                      : `${formatPrice(reservation?.balance || 0)} ${
-                          reservation.currency || "KRW"
-                        }`}
-                  </p>
-                </div>
-              )}
+                )}
               {!reservation?.price && !isPriceEditing && (
                 <div className="border-b-2 border-dotted border-pink-200 pb-4">
                   <div className="flex items-center mb-2 gap-3">
@@ -838,7 +867,7 @@ export default function ReservationDetail() {
                                 value !== (reservation?.currency || "KRW") ||
                                 paymentMethod !==
                                   (reservation?.paymentMethod ||
-                                      (reservation?.currentMemberShip === "vip"
+                                    (reservation?.currentMemberShip === "vip"
                                       ? "memberCard"
                                       : "cash"))
                             );
@@ -920,7 +949,9 @@ export default function ReservationDetail() {
                             // 重置支付方法
                             if (reservation?.paymentMethod) {
                               setPaymentMethod(reservation.paymentMethod);
-                              } else if (reservation?.currentMemberShip === "vip") {
+                            } else if (
+                              reservation?.currentMemberShip === "vip"
+                            ) {
                               setPaymentMethod("memberCard");
                             } else {
                               setPaymentMethod("cash");
@@ -1308,9 +1339,15 @@ export default function ReservationDetail() {
             <div className="mt-8 flex flex-col md:flex-row gap-4 justify-center">
               <Button
                 className="bg-gradient-to-r from-purple-500 to-pink-600 active:from-purple-600 active:to-pink-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105"
-                onClick={() => router.back()}
+                onClick={handleSmartBack}
               >
-                <div className="text-white">返回</div>
+                <div className="text-white">返回上一页</div>
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-purple-500 to-pink-600 active:from-purple-600 active:to-pink-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105"
+                onClick={() => router.push("/calendar")}
+              >
+                <div className="text-white">返回日历</div>
               </Button>
 
               <Button

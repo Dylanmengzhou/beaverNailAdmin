@@ -26,6 +26,7 @@ export async function GET(req: Request) {
     const result = await sql`
 			SELECT
 				r.id AS "reservationId",
+        u.id AS "userId",
 				u.name,
 				u.email,
 				u."altContact",
