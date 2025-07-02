@@ -18,8 +18,6 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   }
-  const today = new Date();
-  const formattedDate = today.toISOString().split('T')[0];
 
   try {
     // 搜索用户
@@ -30,7 +28,6 @@ export async function GET(request: NextRequest) {
           SELECT SUM(r2."finalPrice")
           FROM "Reservation" r2
           WHERE r2."userId" = u.id 
-          AND r2.date <= ${formattedDate}
           AND r2."paymentMethod" = 'memberCard'
           AND r2."finalPrice" IS NOT NULL
         ), 0), 0) AS "balance"

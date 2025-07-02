@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
 					SELECT SUM(r2."finalPrice")
 					FROM "Reservation" r2
 					WHERE r2."userId" = u.id 
-					AND r2.date < r.date
-                    AND r2."paymentMethod" = 'memberCard'
+          AND r2."paymentMethod" = 'memberCard'
 					AND r2."finalPrice" IS NOT NULL
 				), 0), 0) AS "balance"
 			FROM "Reservation" r
