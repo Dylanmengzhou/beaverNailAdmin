@@ -643,14 +643,7 @@ export default function ReservationDetail() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <h2
-                      className="text-lg font-bold text-gray-700"
-                      onClick={() => {
-                        router.push(
-                          `/dashboard/user-reservation/user-detail?userId=${reservation.userId}`
-                        );
-                      }}
-                    >
+                    <h2 className="text-lg font-bold text-gray-700">
                       客户姓名
                     </h2>
                     {reservation.currentMemberShip?.toLowerCase() === "vip" ? (
@@ -664,7 +657,14 @@ export default function ReservationDetail() {
                     )}
                   </div>
                 </div>
-                <p className="text-gray-600 pl-11 font-medium">
+                <p
+                  className="text-blue-600 pl-11 font-medium cursor-pointer"
+                  onClick={() => {
+                    router.push(
+                      `/dashboard/user-reservation/user-detail?userId=${reservation.userId}`
+                    );
+                  }}
+                >
                   {reservation.user ? reservation.user : "未设置"}
                 </p>
               </div>
