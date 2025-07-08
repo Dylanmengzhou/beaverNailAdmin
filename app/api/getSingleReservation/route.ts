@@ -44,6 +44,7 @@ export async function GET(req: Request) {
 				u."membershipType",
         r."paymentMethod",
         r."currentMemberShip",
+        r."uploadImage",
 				GREATEST(u."balance" - COALESCE((
 					SELECT SUM(r2."finalPrice")
 					FROM "Reservation" r2

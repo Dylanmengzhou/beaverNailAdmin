@@ -2,6 +2,8 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AiFillPicture } from "react-icons/ai";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -54,6 +56,7 @@ type ReservationData = {
   userId: string | null;
   paymentMethod?: string;
   currentMemberShip?: string;
+  uploadImage?: string;
 };
 
 // 定义用户数据类型
@@ -96,6 +99,27 @@ export default function ReservationDetail() {
   const [depositValue, setDepositValue] = useState<boolean>(false);
   const [isDepositModified, setIsDepositModified] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+
+  // ESC键关闭图片弹窗
+  useEffect(() => {
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isImageModalOpen) {
+        setIsImageModalOpen(false);
+      }
+    };
+
+    if (isImageModalOpen) {
+      document.addEventListener("keydown", handleEsc);
+      // 阻止背景滚动
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = "unset";
+    };
+  }, [isImageModalOpen]);
 
   // 智能返回函数
   const handleSmartBack = () => {
@@ -174,6 +198,7 @@ export default function ReservationDetail() {
           balance: data.balance,
           currentMemberShip: data.currentMemberShip,
           userId: data.userId,
+          uploadImage: data.uploadImage,
           paymentMethod:
             data.paymentMethod ||
             (data.currentMemberShip === "vip" ? "memberCard" : "cash"),
@@ -974,7 +999,7 @@ export default function ReservationDetail() {
                     </div>
                   </div>
                   <h2 className="text-lg font-bold text-gray-700">
-                    是否已付定金
+                    是否支付定金
                   </h2>
                 </div>
                 {!isDepositEditing ? (
@@ -1079,6 +1104,32 @@ export default function ReservationDetail() {
                         取消
                       </Button>
                     </div>
+                  </div>
+                )}
+              </div>
+              <div className="border-b-2 border-dotted border-pink-200 pb-4">
+                <div className="flex items-center mb-2 gap-3">
+                  <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
+                    <div className="text-white">
+                      <AiFillPicture />
+                    </div>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-700">转账截图</h2>
+                </div>
+                {reservation.uploadImage ? (
+                  <div className="flex items-center justify-start ml-11">
+                    <Image
+                      src={reservation.uploadImage}
+                      alt="转账截图"
+                      width={100}
+                      height={100}
+                      className="cursor-pointer hover:opacity-80 transition-opacity duration-200 rounded-lg shadow-md"
+                      onClick={() => setIsImageModalOpen(true)}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-white font-medium ml-11 rounded-full bg-orange-400 w-fit px-2 ">
+                    未上传
                   </div>
                 )}
               </div>
@@ -1362,6 +1413,31 @@ export default function ReservationDetail() {
       ) : (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg shadow-md">
           <p className="text-yellow-700 font-medium">未找到预约信息</p>
+        </div>
+      )}
+
+      {/* 图片放大弹窗 */}
+      {isImageModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center"
+          onClick={() => setIsImageModalOpen(false)}
+        >
+          <Button
+            onClick={() => setIsImageModalOpen(false)}
+            className="absolute top-0 p-0! right-0 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-b-full rounded-l-full rounded-t-none rounded-r-none shadow-lg flex items-center justify-center hover:bg-white transition-all duration-200"
+          >
+            <span className="text-gray-700 font-bold text-xl">×</span>
+          </Button>
+          {reservation?.uploadImage && (
+            <Image
+              src={reservation.uploadImage}
+              alt="转账截图"
+              width={800}
+              height={600}
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
         </div>
       )}
 
