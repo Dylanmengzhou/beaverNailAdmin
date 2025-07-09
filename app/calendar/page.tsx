@@ -28,14 +28,52 @@ export default function Home() {
   // 添加日历视图状态
   const [calendarView, setCalendarView] = useState("dayGridMonth");
 
+  // 加载状态
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [currentMonthKey, setCurrentMonthKey] = useState("");
+
   // 格式化日期函数
   const formatDate = (dateString: string) => {
+    console.log("formatDate 输入:", dateString);
     const date = new Date(dateString);
-    const koreaDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-    const year = koreaDate.getUTCFullYear();
-    const month = String(koreaDate.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(koreaDate.getUTCDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    console.log("解析的日期对象:", date);
+
+    // 简化日期处理，避免时区问题
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const result = `${year}-${month}-${day}`;
+
+    console.log("格式化结果:", result);
+    return result;
+  };
+
+  // 生成月份范围的辅助函数
+  const getMonthRange = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0);
+
+    // 使用本地时间格式化，避免时区问题
+    const formatLocalDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const startDateStr = formatLocalDate(startDate);
+    const endDateStr = formatLocalDate(endDate);
+
+    console.log(`月份范围计算: ${year}年${month + 1}月`);
+    console.log(`开始日期: ${startDateStr}, 结束日期: ${endDateStr}`);
+
+    return {
+      startDate: startDateStr,
+      endDate: endDateStr,
+      key: `${year}-${String(month + 1).padStart(2, "0")}`,
+    };
   };
 
   // API 返回的数据类型
@@ -64,18 +102,33 @@ export default function Home() {
   // 状态管理
   const [apiReservations, setApiReservations] = useState<ApiReservation[]>([]);
 
-  // 获取预约数据
-  const handleGetReservation = async () => {
+  // 获取特定月份的预约数据（实时，无缓存）
+  const handleGetMonthlyReservation = async (
+    startDate: string,
+    endDate: string,
+    monthKey: string
+  ) => {
     try {
       // 如果没有用户信息，不执行请求
       if (!currentUser) return;
 
+      console.log(
+        `🔍 实时获取月份 ${monthKey} 的数据，日期范围: ${startDate} 到 ${endDate}`
+      );
+      console.log(
+        `📅 具体包含的日期范围: ${startDate} (第一天) 到 ${endDate} (最后一天)`
+      );
+      setIsLoadingData(true);
       const response = await fetch("/api/getNewReservation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ loginUser: currentUser }),
+        body: JSON.stringify({
+          loginUser: currentUser,
+          startDate,
+          endDate,
+        }),
       });
       const data = await response.json();
 
@@ -83,30 +136,57 @@ export default function Home() {
         // 根据用户类型过滤预约
         let filteredReservations = data.message;
 
-        console.log("currentUser", currentUser);
-        console.log("reservations", data.message);
+        console.log("API 返回的原始数据:", data.message.length, "条");
+        console.log("原始数据详情:", data.message);
+
         // 如果是staff，只显示分配给自己的预约
         if (currentUser.memberType === "staff") {
           filteredReservations = data.message.filter(
             (reservation: ApiReservation) =>
               reservation.nailArtistId === currentUser.nailArtistId
           );
+          console.log("过滤后的员工数据:", filteredReservations.length, "条");
         }
 
         setApiReservations(filteredReservations);
-        console.log("成功获取预约数据:", filteredReservations.length);
-        toast.success(`成功获取预约数据: ${filteredReservations.length}`, {
-          position: "top-center",
-          duration: 1000,
-        });
+        console.log(
+          `✅ 成功获取并设置月份 ${monthKey} 的预约数据:`,
+          filteredReservations.length,
+          "条"
+        );
+        console.log("设置的预约数据详情:", filteredReservations);
+
+        toast.success(
+          `获取 ${monthKey} 的最新数据: ${filteredReservations.length} 条`,
+          {
+            position: "top-center",
+            duration: 1000,
+          }
+        );
       } else {
         console.error("获取预约数据失败:", data.message);
-        alert("获取预约数据失败");
+        setApiReservations([]); // 清空数据
+        toast.error("获取预约数据失败");
       }
     } catch (error) {
       console.error("获取预约数据出错:", error);
-      alert("获取预约数据出错");
+      setApiReservations([]); // 清空数据
+      toast.error("获取预约数据出错");
+    } finally {
+      setIsLoadingData(false);
     }
+  };
+
+  // 兼容性函数：获取当前月份的预约数据
+  const handleGetReservation = async () => {
+    const now = new Date();
+    const monthRange = getMonthRange(now);
+    setCurrentMonthKey(monthRange.key);
+    await handleGetMonthlyReservation(
+      monthRange.startDate,
+      monthRange.endDate,
+      monthRange.key
+    );
   };
 
   // 页面加载时检测设备 + 拉取预约
@@ -203,17 +283,28 @@ export default function Home() {
     const hour = parseInt(reservation.timeSlot);
     // 只显示几点开始，不显示结束时间
     const formattedTimeSlot = `${hour}:00`;
+    const formattedDate = formatDate(reservation.date);
+
+    console.log(
+      `转换预约数据: ${reservation.name}, 原始日期: ${reservation.date}, 格式化日期: ${formattedDate}`
+    );
 
     return {
       user: reservation.name ?? "未知用户",
       timeslot: formattedTimeSlot,
       contact: reservation.email ?? "无联系方式",
-      date: formatDate(reservation.date),
+      date: formattedDate,
       reservationId: reservation.id,
       provider: reservation.provider ?? "credentials",
       nailArtist: reservation.nailArtist,
     };
   });
+
+  // 调试日历事件数据
+  console.log("转换后的事件数据:", apiEventsData.length, "个事件");
+  if (apiEventsData.length > 0) {
+    console.log("事件数据示例:", apiEventsData[0]);
+  }
 
   // 获取provider对应的背景颜色
   const getProviderBgColor = (provider: string): string => {
@@ -305,6 +396,21 @@ export default function Home() {
     },
   }));
 
+  // 调试最终的日历事件数据
+  console.log("传递给 FullCalendar 的事件数据:", sampleEvents.length, "个事件");
+  if (sampleEvents.length > 0) {
+    console.log("FullCalendar 事件示例:", sampleEvents[0]);
+  }
+
+  // 监听预约数据变化，确保日历正确更新
+  useEffect(() => {
+    console.log("apiReservations 数据更新:", apiReservations.length, "条预约");
+    console.log("当前预约数据:", apiReservations);
+    if (apiReservations.length > 0) {
+      console.log("预约数据示例:", apiReservations[0]);
+    }
+  }, [apiReservations]);
+
   // 处理菜单按钮点击
   const handleMenuButtonClick = () => {
     // 简单切换菜单显示状态
@@ -320,21 +426,6 @@ export default function Home() {
       setShowDropdown(false);
     }
   };
-
-  // 刷新数据并关闭菜单
-  // const handleRefreshData = () => {
-  //   handleGetReservation();
-  //   setShowDropdown(false);
-  // };
-
-  // 今天按钮处理
-  // const handleTodayClick = () => {
-  //   if (calendarRef.current) {
-  //     const calendarApi = calendarRef.current.getApi();
-  //     calendarApi.today();
-  //     setShowDropdown(false);
-  //   }
-  // };
 
   // 日期选择器相关函数
   const handleDateSelect = () => {
@@ -362,6 +453,77 @@ export default function Home() {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.gotoDate(e.target.value + "-01"); // 添加日期，跳转到月份的第一天
       setShowDatePicker(false);
+    }
+  };
+
+  // 处理日历视图变化，实现按需加载数据
+  const handleDatesSet = (dateInfo: any) => {
+    console.log("handleDatesSet 被调用, dateInfo:", dateInfo);
+    console.log("dateInfo.start:", dateInfo.start);
+    console.log("dateInfo.end:", dateInfo.end);
+    console.log("dateInfo.view.type:", dateInfo.view.type);
+
+    // 只在视图类型发生变化时保存设置
+    if (dateInfo.view.type !== calendarView) {
+      console.log("视图发生变化:", dateInfo.view.type);
+      localStorage.setItem("calendarView", dateInfo.view.type);
+      setCalendarView(dateInfo.view.type);
+    }
+
+    // 对于月视图，我们需要精确获取当前显示的月份
+    if (dateInfo.view.type === "dayGridMonth") {
+      // 获取当前日历标题显示的月份
+      let currentDisplayMonth: Date;
+
+      if (calendarRef.current) {
+        const calendarApi = calendarRef.current.getApi();
+        currentDisplayMonth = calendarApi.getDate();
+        console.log("从 calendarApi 获取的当前日期:", currentDisplayMonth);
+      } else {
+        // 后备方案：使用视图范围的中间日期
+        const start = new Date(dateInfo.start);
+        const end = new Date(dateInfo.end);
+        currentDisplayMonth = new Date(
+          start.getTime() + (end.getTime() - start.getTime()) / 2
+        );
+        console.log("后备方案计算的当前日期:", currentDisplayMonth);
+      }
+
+      const monthRange = getMonthRange(currentDisplayMonth);
+      console.log("计算出的月份范围:", monthRange);
+
+      // 只有当月份真正改变时才获取数据
+      if (monthRange.key !== currentMonthKey && currentUser) {
+        console.log(`月份变化: ${currentMonthKey} -> ${monthRange.key}`);
+        console.log(
+          `获取月份数据: ${monthRange.startDate} 到 ${monthRange.endDate}`
+        );
+        setCurrentMonthKey(monthRange.key);
+        handleGetMonthlyReservation(
+          monthRange.startDate,
+          monthRange.endDate,
+          monthRange.key
+        );
+      }
+    }
+    // 对于周视图或日视图，可以扩展范围以包含前后的数据
+    else if (
+      dateInfo.view.type === "dayGridWeek" ||
+      dateInfo.view.type === "dayGridDay"
+    ) {
+      // 获取包含当前视图的月份范围
+      const currentDisplayMonth = new Date(dateInfo.start);
+      const monthRange = getMonthRange(currentDisplayMonth);
+
+      if (monthRange.key !== currentMonthKey && currentUser) {
+        console.log(`视图变化，加载月份数据: ${monthRange.key}`);
+        setCurrentMonthKey(monthRange.key);
+        handleGetMonthlyReservation(
+          monthRange.startDate,
+          monthRange.endDate,
+          monthRange.key
+        );
+      }
     }
   };
 
@@ -393,6 +555,16 @@ export default function Home() {
   return (
     <div className="flex flex-col justify-center items-center calendar-container">
       <div className="w-full relative">
+        {/* 数据加载指示器 */}
+        {isLoadingData && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-pink-500 text-white px-4 py-2 rounded-md shadow-lg">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>加载中...</span>
+            </div>
+          </div>
+        )}
+
         {/* 毛玻璃背景效果 */}
         {showDropdown && (
           <div
@@ -569,14 +741,7 @@ export default function Home() {
               <div className="fc-daygrid-day-number">{date.getDate()}</div>
             );
           }}
-          datesSet={(arg) => {
-            // 只在视图类型发生变化时保存设置
-            if (arg.view.type !== calendarView) {
-              console.log("视图发生变化:", arg.view.type);
-              localStorage.setItem("calendarView", arg.view.type);
-              setCalendarView(arg.view.type);
-            }
-          }}
+          datesSet={handleDatesSet}
           headerToolbar={
             isMobile
               ? {
@@ -593,7 +758,20 @@ export default function Home() {
           customButtons={{
             myRefreshButton: {
               text: "刷新",
-              click: handleGetReservation,
+              click: () => {
+                console.log("🔄 用户点击刷新，获取最新数据");
+                // 重新获取当前月份的数据
+                if (currentMonthKey && calendarRef.current) {
+                  const calendarApi = calendarRef.current.getApi();
+                  const currentDate = calendarApi.getDate();
+                  const monthRange = getMonthRange(currentDate);
+                  handleGetMonthlyReservation(
+                    monthRange.startDate,
+                    monthRange.endDate,
+                    monthRange.key
+                  );
+                }
+              },
             },
             menuButton: {
               text: "≡",
