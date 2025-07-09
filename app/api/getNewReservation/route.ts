@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
             "Reservation"."id",
             "Reservation"."date",
             "Reservation"."timeSlot",
+            "Reservation"."isClick",
             "NailArtist"."name" as "nailArtist",
             "NailArtist"."id" as "nailArtistId"
           FROM
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
             "Reservation"."id",
             "Reservation"."date",
             "Reservation"."timeSlot",
+            "Reservation"."isClick",
             "NailArtist"."name" as "nailArtist",
             "NailArtist"."id" as "nailArtistId"
           FROM
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
           id: reservation.id,
           date: reservation.date,
           timeSlot: reservation.timeSlot,
+          isClick: reservation.isClick ?? false, // 添加点击状态字段
           nailArtist: reservation.nailArtist,
           nailArtistId: reservation.nailArtistId,
         };
@@ -114,6 +117,7 @@ export async function POST(request: NextRequest) {
           "Reservation"."id",
           "Reservation"."date",
           "Reservation"."timeSlot",
+          "Reservation"."isClick",
           "NailArtist"."name" as "nailArtist",
           "NailArtist"."id" as "nailArtistId"
         FROM
@@ -142,6 +146,7 @@ export async function POST(request: NextRequest) {
           "Reservation"."id",
           "Reservation"."date",
           "Reservation"."timeSlot",
+          "Reservation"."isClick",
           "NailArtist"."name" as "nailArtist",
           "NailArtist"."id" as "nailArtistId"
         FROM
@@ -171,6 +176,7 @@ export async function POST(request: NextRequest) {
         id: reservation.id,
         date: reservation.date,
         timeSlot: reservation.timeSlot,
+        isClick: reservation.isClick ?? false, // 添加点击状态字段
         nailArtist: reservation.nailArtist,
         nailArtistId: reservation.nailArtistId,
       };

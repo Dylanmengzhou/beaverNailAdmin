@@ -588,12 +588,12 @@ export default function ReservationDetail() {
       const data = await res.json();
 
       if (data.success) {
-        // 成功后跳回首页或日历页
+        // 成功后跳回日历页，并传递删除的预约ID
         toast.success(`成功取消预约`, {
           position: "top-center",
           duration: 3000,
         });
-        router.push("/calendar");
+        router.push(`/calendar?deleted=${reservationId}`);
       } else {
         toast.error(`删除失败: ${data.message || "未知错误"}`, {
           position: "top-center",
