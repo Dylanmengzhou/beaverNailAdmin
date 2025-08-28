@@ -102,26 +102,42 @@ export async function POST(request: NextRequest) {
       )
       RETURNING id, date, "timeSlot", "userId", "nailArtistId"
     `;
-    await fetch(
-      "https://botbuilder.larksuite.com/api/trigger-webhook/5b8929c8824bd9320346d9d8b87544ab" as string,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          msg_type: "text",
-          content: {
-            whoRegistered: loginUser,
-            username: user[0].name,
-            phone: user[0].email,
-            date: new Date(date).toISOString().split("T")[0],
-            time: timeSlot,
-            nailArtist: nailArtist[0].name || "未分配",
-            contactType: user[0].contactType,
-            provider: user[0].provider,
-          },
-        }),
-      }
-    );
+    // await fetch(
+    //   "https://botbuilder.larksuite.com/api/trigger-webhook/5b8929c8824bd9320346d9d8b87544ab" as string,
+    //   {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({
+    //       msg_type: "text",
+    //       content: {
+    //         whoRegistered: loginUser,
+    //         username: user[0].name,
+    //         phone: user[0].email,
+    //         date: new Date(date).toISOString().split("T")[0],
+    //         time: timeSlot,
+    //         nailArtist: nailArtist[0].name || "未分配",
+    //         contactType: user[0].contactType,
+    //         provider: user[0].provider,
+    //       },
+    //     }),
+    //   }
+    // );
+    await fetch(process.env.TELEGRAM_API as string, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: process.env.TELEGRAM_CHAT_ID,
+        parse_mode: "HTML",
+        text: `<b>预约成功提醒 ✅（${loginUser}）</b>
+👤 顾客姓名: ${user[0]?.name}
+💻 联系类型: ${user[0]?.contactType}
+☎️ 联系方式: ${user[0]?.email}
+🗓 预约日期: ${date}
+⌛️ 预约时间: ${timeSlot}
+🔗 登录类型: ${user[0]?.provider}
+👩‍🎤 美甲老师: ${nailArtist[0]?.name || "未分配"}`,
+      }),
+    });
 
     return NextResponse.json(
       { success: true, reservation: newReservation[0] },

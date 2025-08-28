@@ -147,27 +147,44 @@ export async function POST(req: Request) {
       ? `${getStaffTypeText(operatorType)}-${operatorName}`
       : "商家取消";
 
-    await fetch(
-      "https://botbuilder.larksuite.com/api/trigger-webhook/0a5197fbd746e1eeaf3a0afa1ddb795f" as string,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          msg_type: "text",
-          content: {
-            whoCancelled: cancelledBy,
-            username: result[0].name,
-            phone: result[0].email,
-            reservationId: result[0].reservationId,
-            date: new Date(result[0].date).toISOString().split("T")[0],
-            time: result[0].timeSlot,
-            nailArtist: result[0].nailArtistName || "未分配",
-            contactType: result[0].contactType,
-            provider: result[0].provider,
-          },
-        }),
-      }
-    );
+    // await fetch(
+    //   "https://botbuilder.larksuite.com/api/trigger-webhook/0a5197fbd746e1eeaf3a0afa1ddb795f" as string,
+    //   {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({
+    //       msg_type: "text",
+    //       content: {
+    //         whoCancelled: cancelledBy,
+    //         username: result[0].name,
+    //         phone: result[0].email,
+    //         reservationId: result[0].reservationId,
+    //         date: new Date(result[0].date).toISOString().split("T")[0],
+    //         time: result[0].timeSlot,
+    //         nailArtist: result[0].nailArtistName || "未分配",
+    //         contactType: result[0].contactType,
+    //         provider: result[0].provider,
+    //       },
+    //     }),
+    //   }
+    // );
+    await fetch(process.env.TELEGRAM_API as string, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: process.env.TELEGRAM_CHAT_ID,
+        parse_mode: "HTML",
+        text: `<b>预约取消提醒 ❌（${cancelledBy}）</b>
+👤 顾客姓名: ${result[0].name}
+💻 联系类型: ${result[0]?.contactType}
+☎️ 联系方式: ${result[0]?.email}
+🗓 预约日期: ${new Date(result[0].date).toISOString().split("T")[0]}
+⌛️ 预约时间: ${result[0].timeSlot}
+🔗 登录类型: ${result[0]?.provider}
+👩‍🎤 美甲老师: ${result[0].nailArtistName || "未分配"}
+🆔 预约号码: ${result[0].reservationId}`,
+      }),
+    });
     return NextResponse.json(
       { success: true, message: "删除成功" },
       { status: 200 }
