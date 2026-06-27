@@ -443,6 +443,27 @@ export default function Home() {
     }
   }, [calendarRef.current, checkingAuth]);
 
+  // 把当月预约数追加到日历标题后面
+  useEffect(() => {
+    const updateTitleCount = () => {
+      const titleElement = document.querySelector(".fc-toolbar-title");
+      if (!titleElement) return;
+
+      let countEl = titleElement.querySelector<HTMLSpanElement>(
+        ".reservation-count-badge"
+      );
+      if (!countEl) {
+        countEl = document.createElement("span");
+        countEl.className = "reservation-count-badge";
+        titleElement.appendChild(countEl);
+      }
+      countEl.innerHTML = `<span class="reservation-count-dot">· </span>${apiReservations.length}个预约`;
+    };
+
+    const timer = setTimeout(updateTitleCount, 100);
+    return () => clearTimeout(timer);
+  }, [apiReservations.length, currentMonthKey, checkingAuth, calendarView]);
+
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -1007,6 +1028,25 @@ export default function Home() {
                       美甲师管理
                     </span>
                   </div>
+                  {currentUser?.memberType === "manager" && (
+                    <>
+                      <div className="border-t-2 border-white rounded-full"></div>
+                      <div
+                        className="px-4 py-3 my-1 flex items-center gap-2 hover:bg-pink-100 cursor-pointer rounded-lg transition-colors"
+                        onClick={() => {
+                          router.push("/dashboard/stats");
+                          setShowDropdown(false);
+                        }}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-500 text-white">
+                          <SiAdafruit />
+                        </div>
+                        <span className="font-medium text-pink-800">
+                          数据看板
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

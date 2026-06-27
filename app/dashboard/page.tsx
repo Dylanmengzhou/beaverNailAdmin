@@ -116,6 +116,13 @@ export default function DashboardPage() {
               {currentUser?.memberType === "manager" && (
                 <>
                   <Button
+                    onClick={() => onClick("/dashboard/stats")}
+                    className="w-full bg-gradient-to-r from-purple-400 to-pink-600 hover:from-purple-500 hover:to-pink-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
+                  >
+                    数据看板
+                  </Button>
+
+                  <Button
                     onClick={() => onClick("/dashboard/registerNailArtist")}
                     className="w-full bg-gradient-to-r from-pink-400 to-pink-600 hover:from-pink-500 hover:to-pink-700 text-white rounded-xl py-6 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-300"
                   >
