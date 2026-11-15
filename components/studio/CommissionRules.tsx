@@ -8,6 +8,7 @@ import type {CommissionSnapshot,CommissionTier} from "@/lib/studio/commission";
 import {AdminSelect} from "@/components/admin/FormControls";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
+import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogTitle} from "@/components/ui/dialog";
 import {useUnsavedChanges} from "@/components/admin/UnsavedChanges";
 import {toast} from "sonner";
 
@@ -35,7 +36,9 @@ function TierList({tiers,currency}:{tiers:CommissionTier[];currency:string}){
 export default function CommissionRules({serviceId,editable=false}:{serviceId?:string;editable?:boolean}){
  const[data,setData]=useState<Data>(),[error,setError]=useState(""),[subject,setSubject]=useState(""),[creating,setCreating]=useState(false),[busy,setBusy]=useState(false);
  const[date,setDate]=useState(seoulDay()),[currency,setCurrency]=useState("KRW"),[tiers,setTiers]=useState([{minimum:"0",store:"50"},{minimum:"4000000",store:"40"}]);
- const navigate=useUnsavedChanges(creating,()=>setCreating(false));
+ useUnsavedChanges(creating,()=>setCreating(false));
+ const [pendingAction,setPendingAction]=useState<(()=>void)|null>(null);
+ const changeRuleView=(action:()=>void)=>{if(creating)setPendingAction(()=>action);else action();};
  const load=useCallback(async()=>{const value=await adminApi<Data>("/api/studio/commission-policies"+(serviceId?"?service="+encodeURIComponent(serviceId):""));setData(value);setError("");},[serviceId]);
  useEffect(()=>{void load().catch(error=>setError(error.message));},[load]);
  const publish=async()=>{
@@ -47,9 +50,9 @@ export default function CommissionRules({serviceId,editable=false}:{serviceId?:s
  const manager=editable&&data.manager,artistId=manager?(subject||null):data.actorId;
  const groups=data.services.filter(service=>!serviceId||service.id===serviceId).flatMap(service=>[currency].map(currency=>({service,currency,periods:periods(data.rules.filter(rule=>rule.serviceId===service.id&&rule.currency===currency),artistId)}))).filter(group=>group.periods.length);
  return <section className="commission-rules" aria-label="提成规则">
-  <div className="commission-rules-heading"><h3>{editable?"提成规则":"我的提成规则"}</h3>{manager&&<Button variant="outline" onClick={()=>creating?navigate(()=>setCreating(false)):setCreating(true)} disabled={busy}>{creating?"收起":"新增生效规则"}</Button>}</div>
+  <div className="commission-rules-heading"><h3>{editable?"提成规则":"我的提成规则"}</h3>{manager&&<Button variant="outline" onClick={()=>creating?changeRuleView(()=>setCreating(false)):setCreating(true)} disabled={busy}>{creating?"收起":"新增生效规则"}</Button>}</div>
   <p className="commission-rule-note">每位员工、每月、每个项目分别累计已确认的最终价格。达标后整月使用达标档；每单按服务日期对应的规则计算。</p>
-  <div className="commission-rule-filters">{manager&&<AdminSelect label="规则适用员工" value={subject} onValueChange={value=>navigate(()=>{setSubject(value);setCreating(false);})} disabled={busy} options={[{value:"",label:"全部员工 · 项目默认"},...data.staff.map(person=>({value:person.id,label:person.name}))]}/>}<AdminSelect label="规则币种" value={currency} onValueChange={setCurrency} disabled={busy} options={["KRW","CNY","USD"].map(value=>({value,label:currencyLabel(value)}))}/></div>
+  <div className="commission-rule-filters">{manager&&<AdminSelect label="规则适用员工" value={subject} onValueChange={value=>changeRuleView(()=>{setSubject(value);setCreating(false);})} disabled={busy} options={[{value:"",label:"全部员工 · 项目默认"},...data.staff.map(person=>({value:person.id,label:person.name}))]}/>}<AdminSelect label="规则币种" value={currency} onValueChange={setCurrency} disabled={busy} options={["KRW","CNY","USD"].map(value=>({value,label:currencyLabel(value)}))}/></div>
   {creating&&manager&&<form className="commission-rule-form" onSubmit={event=>{event.preventDefault();void publish();}}>
    <div className="commission-rule-fields"><label>生效日期<Input aria-label="规则生效日期" type="date" value={date} onChange={event=>setDate(event.target.value)} required disabled={busy}/></label></div>
    <p className="commission-rule-note">从该日零点起生效（韩国时间，含当天）。已有订单和已提交申请的规则保持不变。</p>
@@ -61,5 +64,6 @@ export default function CommissionRules({serviceId,editable=false}:{serviceId?:s
    <h4>{group.service.name} · {currencyLabel(group.currency)}</h4>
    {group.periods.map(period=><article key={period.rule.id}><header><strong>{period.from==="0001-01-01"?"历史固定规则":period.from}{period.until?" 至 "+untilLabel(period.until):period.from==="0001-01-01"?"":" 起"}</strong>{period.rule.nailArtistId&&<small>员工专属</small>}</header><TierList tiers={period.rule.tiers} currency={group.currency}/></article>)}
   </div>)}
+  <Dialog open={!!pendingAction} onOpenChange={open=>{if(!open)setPendingAction(null);}}><DialogContent closeLabel="继续编辑规则"><DialogTitle>放弃未发布的规则？</DialogTitle><DialogDescription>价格表和项目设置中未保存的更改会保留。</DialogDescription><DialogFooter><Button type="button" variant="outline" onClick={()=>setPendingAction(null)}>继续编辑</Button><Button type="button" variant="destructive" onClick={()=>{pendingAction?.();setPendingAction(null);}}>放弃这次规则</Button></DialogFooter></DialogContent></Dialog>
  </section>;
 }

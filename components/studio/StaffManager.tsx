@@ -10,18 +10,16 @@ import {
   ChevronLeft,
   Check,
   Loader2,
-  Paintbrush2,
   Plus,
   Save,
-  Sparkles,
-  Trash2,
   Eye,
   EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+import {SettingSwitch} from "@/components/admin/FormControls";
+import {Tabs,TabsContent,TabsList,TabsTrigger} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -100,7 +98,9 @@ export default function StaffManager({
   const [passwords, setPasswords] = useState<Record<string, string>>({});
   const [credentialsError, setCredentialsError] = useState("");
   const [credentialsRetry, setCredentialsRetry] = useState(0);
-  const [showPassword, setShowPassword] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [panel,setPanel]=useState("profile");
+  useEffect(()=>{setPanel("profile");setShowPassword(false);},[selectedId]);
   useEffect(() => {
     if (
       !selectedId ||
@@ -166,8 +166,10 @@ export default function StaffManager({
     setBusy(true);
     try {
       for (const [, draft] of pending)
-        if (!draft.account?.trim() || !draft.password)
+        if (!draft.account?.trim() || !draft.password){
+          setPanel("account");
           throw new Error("请填写员工的登录账号和密码");
+        }
       for (const [key, draft] of pending) {
         const saved = await onSave(draft);
         if (saved.id)
@@ -213,218 +215,48 @@ export default function StaffManager({
     }
   };
   return (
-    <div className={"staff-manager" + (pending.length ? " has-changes" : "")}>
+    <div className={"staff-manager" + (inDetails ? " compact-editor-workspace staff-workspace" : pending.length ? " has-changes" : "")}>
       {inDetails ? (
         <>
-          <div className="home-photo-detail-heading">
-            <h1>{selectedId === "new" ? "新增员工" : "员工设置"}</h1>
-            <Button variant="outline" onClick={back} disabled={busy}>
-              <ChevronLeft size={14} />
-              员工墙
-            </Button>
-          </div>
+          <header className="compact-editor-toolbar">
+            <div className="compact-editor-title"><Button type="button" variant="ghost" size="icon" aria-label="返回员工列表" onClick={back} disabled={busy}><ChevronLeft size={18}/></Button><h1>{selectedId==="new"?"新增员工":selected?.name}</h1></div>
+            <div className="compact-editor-actions"><span className="compact-editor-save-state" role="status">{pending.length?"未保存":"已保存"}</span><Button type="button" onClick={save} disabled={busy||credentialsLoading||!pending.length}>{busy&&<Loader2 size={15} className="animate-spin"/>}保存</Button></div>
+          </header>
           {credentialsLoading ? (
-            <section className="admin-panel staff-detail-panel">
-              <PanelState
-                loading={!credentialsError}
-                title={credentialsError || "正在读取员工资料…"}
-              >
-                {credentialsError && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setCredentialsRetry((value) => value + 1)}
-                  >
-                    重新读取
-                  </Button>
-                )}
-              </PanelState>
-            </section>
+            <PanelState loading={!credentialsError} title={credentialsError || "正在读取员工资料…"}>
+              {credentialsError&&<Button variant="outline" onClick={()=>setCredentialsRetry(value=>value+1)}>重新读取</Button>}
+            </PanelState>
           ) : (
-            <section className="admin-panel editor-main staff-detail-panel">
-              <div className="staff-editor-heading">
-                <div className="admin-inline">
-                  <span className="admin-avatar">
-                    {(editing.name || "+").slice(0, 1).toUpperCase()}
-                  </span>
-                  <div>
-                    <h2>{editing.name || "新员工"}</h2>
+            <Tabs value={panel} onValueChange={setPanel} className="compact-editor-tabs">
+              <TabsList aria-label="员工设置分类"><TabsTrigger value="profile">基本资料</TabsTrigger><TabsTrigger value="schedule">项目与排班</TabsTrigger><TabsTrigger value="account">登录账号</TabsTrigger></TabsList>
+              <TabsContent value="profile" forceMount>
+                <section className="editor-form-section" aria-label="基本资料">
+                  <div className="editor-form-grid">
+                    <div className="admin-field"><label htmlFor="staff-name">员工姓名</label><Input id="staff-name" maxLength={80} value={editing.name} disabled={busy} onChange={event=>setEditing(value=>({...value,name:event.target.value}))}/></div>
+                    <div className="admin-field"><label htmlFor="staff-role">员工等级</label><Select value={editing.role||"L3"} disabled={busy} onValueChange={role=>setEditing(value=>({...value,role}))}><SelectTrigger id="staff-role" className="w-full"><SelectValue/></SelectTrigger><SelectContent>{Object.entries({L1:"院长",L2:"大师",L3:"员工",L4:"实习",L5:"助理",L6:"学徒"}).map(([role,label])=><SelectItem key={role} value={role}>{role} · {label}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="admin-field"><label htmlFor="staff-permission">管理权限</label><Select value={editing.membertype||"staff"} disabled={busy} onValueChange={membertype=>setEditing(value=>({...value,membertype:membertype as "staff"|"manager"}))}><SelectTrigger id="staff-permission" className="w-full"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">员工</SelectItem><SelectItem value="manager">店长</SelectItem></SelectContent></Select><small>{editing.membertype==="manager"?"可管理全部设置并审核结算。":"只能提交自己的结算申请。"}</small></div>
                   </div>
-                </div>
-                <label className="staff-active">
-                  <span>开放预约</span>
-                  <Switch
-                    checked={editing.active}
-                    aria-label="开放顾客预约"
-                    disabled={busy}
-                    onCheckedChange={(active) =>
-                      setEditing((value) => ({ ...value, active }))
-                    }
-                  />
-                </label>
-              </div>
-              <div className="admin-form-grid">
-                <div className="admin-field">
-                  <label htmlFor="staff-name">员工姓名</label>
-                  <Input
-                    id="staff-name"
-                    maxLength={80}
-                    value={editing.name}
-                    disabled={busy}
-                    onChange={(event) =>
-                      setEditing((value) => ({
-                        ...value,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="admin-field"><label htmlFor="staff-permission">管理权限</label><Select value={editing.membertype||"staff"} disabled={busy} onValueChange={membertype=>setEditing(value=>({...value,membertype:membertype as "staff"|"manager"}))}><SelectTrigger id="staff-permission"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">员工</SelectItem><SelectItem value="manager">店长</SelectItem></SelectContent></Select><small>店长可管理全部设置并审核结算；员工只能提交自己的结算申请。</small></div>
-              </div>
-              <div className="staff-account-section">
-                <div className="admin-field-heading">
-                  <span>登录账号</span>
-                  <span className="admin-subtle">与员工资料一起保存</span>
-                </div>
-                <p className="admin-subtle">
-                  登录账号和密码为必填项，可直接修改，保存后用于员工登录。
-                </p>
-                <div className="admin-form-grid">
-                  <div className="admin-field">
-                    <label htmlFor="staff-account">登录账号</label>
-                    <Input
-                      id="staff-account"
-                      required
-                      minLength={4}
-                      autoComplete="off"
-                      maxLength={80}
-                      placeholder="至少 4 个字符"
-                      value={editing.account || ""}
-                      disabled={busy}
-                      onChange={(event) =>
-                        setEditing((value) => ({
-                          ...value,
-                          account: event.target.value,
-                        }))
-                      }
-                    />
+                  <SettingSwitch label="开放顾客预约" checked={editing.active} disabled={busy} onCheckedChange={active=>setEditing(value=>({...value,active}))}/>
+                </section>
+                {selected?.id&&<div className="editor-danger-zone"><Button type="button" variant="ghost" className="editor-danger-link" disabled={busy} onClick={()=>setConfirmRemove(true)}>移除员工</Button></div>}
+              </TabsContent>
+              <TabsContent value="schedule" forceMount>
+                <section className="editor-form-section staff-service-selection" aria-label="可预约的服务">
+                  <h2>可预约的项目</h2>
+                  <div className="service-choices">{catalog.map(({id:service,names})=><button type="button" key={service} className="service-choice" aria-pressed={editing.services.includes(service)} disabled={busy} onClick={()=>setEditing(value=>({...value,services:value.services.includes(service)?value.services.filter(item=>item!==service):[...value.services,service]}))}><span>{names.zh}</span><span className="choice-check" aria-hidden="true">{editing.services.includes(service)&&<Check size={12}/>}</span></button>)}</div>
+                </section>
+                {editing.services.length?<ServiceSchedules services={editing.services} names={Object.fromEntries(catalog.map(s=>[s.id,s.names.zh]))} value={editing.serviceSettings} legacy={editing.schedule||[]} duration={editing.durationMinutes} busy={busy} onChange={settings=>setEditing(value=>({...value,serviceSettings:settings}))}/>:<p className="editor-empty">选择项目后，在这里设置服务时长和排班。</p>}
+              </TabsContent>
+              <TabsContent value="account" forceMount>
+                <section className="editor-form-section" aria-label="登录账号">
+                  <div className="editor-form-grid">
+                    <div className="admin-field"><label htmlFor="staff-account">登录账号</label><Input id="staff-account" required minLength={4} autoComplete="off" maxLength={80} placeholder="至少 4 个字符" value={editing.account||""} disabled={busy} onChange={event=>setEditing(value=>({...value,account:event.target.value}))}/></div>
+                    <div className="admin-field"><label htmlFor="staff-password">登录密码</label><div className="staff-password-input"><Input id="staff-password" type={showPassword?"text":"password"} autoComplete="new-password" required minLength={6} maxLength={200} placeholder="至少 6 个字符" value={editing.password||""} disabled={busy} onChange={event=>setEditing(value=>({...value,password:event.target.value}))}/><button type="button" className="admin-icon-button" disabled={busy} aria-label={showPassword?"隐藏密码":"显示密码"} aria-pressed={showPassword} onClick={()=>setShowPassword(value=>!value)}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></div>
                   </div>
-                  <div className="admin-field">
-                    <label htmlFor="staff-role">员工等级</label>
-                    <Select
-                      value={editing.role || "L3"}
-                      disabled={busy}
-                      onValueChange={(role) =>
-                        setEditing((value) => ({ ...value, role }))
-                      }
-                    >
-                      <SelectTrigger id="staff-role" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries({
-                          L1: "院长",
-                          L2: "大师",
-                          L3: "员工",
-                          L4: "实习",
-                          L5: "助理",
-                          L6: "学徒",
-                        }).map(([role, label]) => (
-                          <SelectItem key={role} value={role}>
-                            {role} · {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="admin-field staff-password-field">
-                    <label htmlFor="staff-password">登录密码</label>
-                    <div className="staff-password-input">
-                      <Input
-                        id="staff-password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        required
-                        minLength={6}
-                        maxLength={200}
-                        placeholder="至少 6 个字符"
-                        value={editing.password || ""}
-                        disabled={busy}
-                        onChange={(event) =>
-                          setEditing((value) => ({
-                            ...value,
-                            password: event.target.value,
-                          }))
-                        }
-                      />
-                      <button
-                        type="button"
-                        className="admin-icon-button"
-                        aria-label={showPassword ? "隐藏密码" : "显示密码"}
-                        aria-pressed={showPassword}
-                        onClick={() => setShowPassword((value) => !value)}
-                      >
-                        {showPassword ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="admin-form-divider" />
-              <div className="admin-field-heading">
-                <span>可预约的服务</span>
-                <span className="admin-subtle">可选择多个服务项目</span>
-              </div>
-              <div className="service-choices">
-                {catalog.map(({id:service,names}) => (
-                  <button
-                    type="button"
-                    key={service}
-                    className={`service-choice ${service}`}
-                    aria-pressed={editing.services.includes(service)}
-                    disabled={busy}
-                    onClick={() =>
-                      setEditing((value) => ({
-                        ...value,
-                        services: value.services.includes(service)
-                          ? value.services.filter((item) => item !== service)
-                          : [...value.services, service],
-                      }))
-                    }
-                  >
-                    {service === "nails" ? (
-                      <Paintbrush2 size={17} />
-                    ) : (
-                      <Sparkles size={17} />
-                    )}
-                    <span>{names.zh}</span>
-                    <span className="choice-check">
-                      {editing.services.includes(service) && (
-                        <Check size={10} />
-                      )}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="admin-form-divider" />
-              <ServiceSchedules services={editing.services} names={Object.fromEntries(catalog.map(s=>[s.id,s.names.zh]))} value={editing.serviceSettings} legacy={editing.schedule || []} duration={editing.durationMinutes} busy={busy} onChange={settings=>setEditing(v=>({...v,serviceSettings:settings}))}/>
-
-
-              {selected?.id && (
-                <Button
-                  variant="ghost"
-                  className="staff-remove"
-                  disabled={busy}
-                  onClick={() => setConfirmRemove(true)}
-                >
-                  <Trash2 size={14} />
-                  移除员工
-                </Button>
-              )}
-            </section>
+                  <p className="editor-field-note">账号和密码与员工资料一起保存。</p>
+                </section>
+              </TabsContent>
+            </Tabs>
           )}
         </>
       ) : (
@@ -508,7 +340,7 @@ export default function StaffManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {pending.length > 0 && (
+      {pending.length > 0 && !inDetails && (
         <div className="home-photo-savebar">
           <span>
             {pending.length > 1

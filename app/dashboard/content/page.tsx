@@ -3,21 +3,20 @@
 import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
 import {useRouter,useSearchParams} from "next/navigation";
-import {ArrowLeft, Check, FileText, Loader2, Paintbrush2, Plus, Save, Sparkles, Trash2} from "lucide-react";
+import {ArrowLeft, Loader2, Paintbrush2, Plus, Sparkles} from "lucide-react";
 import {toast} from "sonner";
 import {adminApi} from "@/lib/admin-api";
 import {useAdminSession} from "@/components/admin/AdminShell";
 import {useUnsavedChanges} from "@/components/admin/UnsavedChanges";
-import {PageHeading, PanelState} from "@/components/admin/PageHeading";
+import {PanelState} from "@/components/admin/PageHeading";
 import {AdminSelect, TextField} from "@/components/admin/FormControls";
 import {Button} from "@/components/ui/button";
 import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogTitle} from "@/components/ui/dialog";
 import {EntryCard} from "@/components/admin/EntryCard";
-import ProjectEditor from "@/components/studio/ProjectEditor";
+import ProjectEditor, {type ProjectPanel} from "@/components/studio/ProjectEditor";
 import ContentPreview from "@/components/studio/ContentPreview";
 import EventCard from "@/components/studio/EventCard";
 import PosterEditor from "@/components/studio/PosterEditor";
-import {Label} from "@/components/ui/label";
 import {studioContentSchema, type StudioContent, type CatalogService} from "@/lib/studio/content";
 import type {CommissionRules} from "@/lib/studio/settlement";
 type ManagedContent=StudioContent&{commissionRules?:CommissionRules};
@@ -63,6 +62,7 @@ export default function ContentManager(){
   const [deleteOpen,setDeleteOpen]=useState(false);
   const [deleteError,setDeleteError]=useState("");
   const [lang,setLang]=useState<Language>("zh");
+  const [projectPanel,setProjectPanel]=useState<ProjectPanel>("prices");
   const dirty=!!content&&(JSON.stringify(content)!==saved||!!draftProject||!!draftEvent);
   const confirmNavigation=useUnsavedChanges(dirty,()=>{
     if(saved)setContent(JSON.parse(saved));
@@ -148,6 +148,7 @@ export default function ContentManager(){
     <TextField label={label} value={value} onChange={event=>onChange(event.target.value)} disabled={busy} hint={hint}/>;
   const addService=()=>confirmNavigation(()=>{
     const id="service_"+Date.now().toString(36);
+    setProjectPanel("settings");
     setDraftProject({id,names:{zh:"新服务",en:"New service",kr:"새 서비스"},theme:"pink",enabled:true,sections:[],notes:[]});
     const next=new URLSearchParams(params.toString());next.set("view","services");next.set("project",id);next.set("create","1");
     router.push("/dashboard/content?"+next.toString());
@@ -198,14 +199,12 @@ export default function ContentManager(){
   const previewContent={...content,services:draftProject?[...content.services,draftProject]:content.services,events:draftEvent?[...content.events,draftEvent]:content.events};
   const previewButton=<ContentPreview content={previewContent} view={view} lang={lang} service={chosen}/>;
   const simpleContent=view==="about"||view==="contact";
-  return <div className={simpleContent?"simple-content-workspace simple-editing-workspace":"contents"}>
+  return <div className={view==="services"&&!overview?"compact-editor-workspace project-workspace":simpleContent?"simple-content-workspace simple-editing-workspace":"contents"}>
     {simpleContent&&<header className="simple-toolbar"><h1 className="sr-only">{views[view].title}</h1><div className="simple-toolbar-controls">{view==="about"&&<AdminSelect label="编辑语言" value={lang} onValueChange={value=>setLang(value as Language)} options={languages} disabled={busy}/>}</div><div className="simple-toolbar-actions">{previewButton}<Button type="button" onClick={save} disabled={busy||!dirty}>{busy&&<Loader2 size={15} className="animate-spin"/>}保存</Button></div></header>}
-    {!overview&&view==="services"&&<PageHeading eyebrow="MAKE IT YOURS" title={service.names.zh} description={views[view].description}>
-      {view==="services"&&<Button variant="outline" disabled={busy} onClick={()=>openProject()}><ArrowLeft size={14}/>项目列表</Button>}
-      {previewButton}
-      {!overview&&<span className={"content-save-state "+(dirty?"is-dirty":"")}>{dirty?<span/>:<Check size={14}/>} {dirty?"有未保存的更改":"已保存"}</span>}
-      {!overview&&<Button onClick={save} disabled={busy||!dirty}>{busy?<Loader2 className="animate-spin" size={15}/>:<Save size={15}/>}保存更改</Button>}
-    </PageHeading>}
+    {!overview&&view==="services"&&<header className="compact-editor-toolbar">
+      <div className="compact-editor-title"><Button type="button" variant="ghost" size="icon" aria-label="返回项目列表" disabled={busy} onClick={()=>openProject()}><ArrowLeft size={18}/></Button><h1>{draftProject?"新增项目":service.names.zh}</h1></div>
+      <div className="compact-editor-actions">{projectPanel!=="commission"&&<><AdminSelect label="编辑语言" value={lang} onValueChange={value=>setLang(value as Language)} options={languages} disabled={busy}/><span className="compact-editor-save-state" role="status">{dirty?"未保存":"已保存"}</span>{previewButton}<Button type="button" onClick={save} disabled={busy||!dirty}>{busy&&<Loader2 className="animate-spin" size={15}/>}保存</Button></>}</div>
+    </header>}
     {projectOverview?<div className="studio-entry-grid" role="region" aria-label="项目列表">
       {content.services.map(project=><EntryCard key={project.id} disabled={busy} title={project.names.zh} icon={project.theme==="yellow"?Sparkles:Paintbrush2} theme={project.theme} status={project.enabled?"开放预约":"已停用"} description={project.sections.length+" 个价格分组 · "+project.sections.reduce((count,section)=>count+section.items.length,0)+" 项价格"} onClick={()=>openProject(project.id)}/>)}
       <EntryCard title="添加项目" description="创建新的服务和价格菜单" icon={Plus} theme="pink" disabled={busy} add onClick={addService} footer="新增项目"/>
@@ -224,17 +223,7 @@ export default function ContentManager(){
     </div>:simpleContent?<div>
       {view==="about"?<Editor key={lang} value={content.about[lang]} onChange={text=>update(value=>{value.about[lang]=text;})} disabled={busy} onImageUpload={uploadImage}/>
       :<div className="simple-contact-settings">{contactFields.map(group=><section className="simple-settings-group" key={group.title}><h2>{group.title}</h2><div className="simple-contact-fields">{group.fields.map(([key,label])=><div key={key} className={key==="address"?"is-wide":""}>{field(label,content.contact[key as keyof typeof content.contact],text=>update(value=>{value.contact[key as keyof typeof value.contact]=text;}))}</div>)}</div></section>)}</div>}
-    </div>:<>
-    <div className="content-toolbar admin-panel">
-      <div className="content-language"><Label htmlFor="content-language">编辑语言</Label><AdminSelect id="content-language" label="编辑语言" value={lang} onValueChange={value=>setLang(value as Language)} options={languages} disabled={busy}/></div>
-    </div>
-    <div className="content-editor-layout view-services">
-      <section className="admin-panel content-edit" data-color-mode="light">
-        <div className="content-panel-heading"><span className="content-panel-icon"><FileText size={19}/></span><div><h2>{service.names.zh} · 项目与价格</h2></div></div>
-        <fieldset disabled={busy} className="content-edit-fields"><ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/></fieldset>
-      </section>
-    </div>
-    </>}
+    </div>:<fieldset disabled={busy} className="compact-editor-fields"><ProjectEditor key={service.id} service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} panel={projectPanel} onPanelChange={setProjectPanel} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/></fieldset>}
 
     <Dialog open={!!deletingEvent} onOpenChange={open=>{if(!open&&!busy)setDeletingEvent(undefined);}}>
       <DialogContent closeLabel="取消删除" onEscapeKeyDown={event=>{if(busy)event.preventDefault();}} onPointerDownOutside={event=>{if(busy)event.preventDefault();}}>
