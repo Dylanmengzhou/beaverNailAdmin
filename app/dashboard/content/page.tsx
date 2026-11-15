@@ -19,10 +19,8 @@ import EventCard from "@/components/studio/EventCard";
 import PosterEditor from "@/components/studio/PosterEditor";
 import {Label} from "@/components/ui/label";
 import {studioContentSchema, type StudioContent, type CatalogService} from "@/lib/studio/content";
-import "@uiw/react-md-editor/markdown-editor.css";
-import "@uiw/react-markdown-preview/markdown.css";
 
-const Editor=dynamic(()=>import("@uiw/react-md-editor"),{ssr:false});
+const Editor=dynamic(()=>import("@/components/studio/DocumentEditor"),{ssr:false,loading:()=> <p className="simple-chart-state" role="status">正在打开文档…</p>});
 const empty=()=>({zh:"",en:"",kr:""});
 const views={
   services:{title:"项目与价格",description:"选择一个项目，统一管理项目信息、价格菜单和到店提醒。"},
@@ -112,16 +110,20 @@ export default function ContentManager(){
     }catch(error){toast.error(error instanceof Error?error.message:"保存失败");}
     finally{setBusy(false);}
   };
-  const upload=async(file:File,id:string)=>{
+  const uploadImage=async(file:File)=>{
     if(file.size>4*1024*1024){toast.error("请选择 4MB 以内的图片");return;}
     setBusy(true);
     try{
       const body=new FormData();body.set("file",file);body.set("purpose","home");
       const result=await adminApi<{url:string}>("/api/media",{method:"POST",body});
-      if(draftEvent?.id===id)setDraftEvent(value=>value?{...value,image:result.url}:value);
-      else update(value=>{const event=value.events.find(event=>event.id===id);if(event)event.image=result.url;});
+      return result.url;
     }catch(error){toast.error(error instanceof Error?error.message:"上传失败");}
     finally{setBusy(false);}
+  };
+  const upload=async(file:File,id:string)=>{
+    const url=await uploadImage(file);if(!url)return;
+    if(draftEvent?.id===id)setDraftEvent(value=>value?{...value,image:url}:value);
+    else update(value=>{const event=value.events.find(event=>event.id===id);if(event)event.image=url;});
   };
 
   if(error)return <PanelState title={error}><Button variant="outline" onClick={()=>location.reload()}>重新加载</Button></PanelState>;
@@ -191,8 +193,10 @@ export default function ContentManager(){
 
   const previewContent={...content,services:draftProject?[...content.services,draftProject]:content.services,events:draftEvent?[...content.events,draftEvent]:content.events};
   const previewButton=<ContentPreview content={previewContent} view={view} lang={lang} service={chosen}/>;
-  return <>
-    {!overview&&view!=="events"&&<PageHeading eyebrow="MAKE IT YOURS" title={view==="services"?service.names.zh:views[view].title} description={views[view].description}>
+  const simpleContent=view==="about"||view==="contact";
+  return <div className={simpleContent?"simple-content-workspace simple-editing-workspace":"contents"}>
+    {simpleContent&&<header className="simple-toolbar"><h1 className="sr-only">{views[view].title}</h1><div className="simple-toolbar-controls">{view==="about"&&<AdminSelect label="编辑语言" value={lang} onValueChange={value=>setLang(value as Language)} options={languages} disabled={busy}/>}</div><div className="simple-toolbar-actions">{previewButton}<Button type="button" onClick={save} disabled={busy||!dirty}>{busy&&<Loader2 size={15} className="animate-spin"/>}保存</Button></div></header>}
+    {!overview&&view==="services"&&<PageHeading eyebrow="MAKE IT YOURS" title={service.names.zh} description={views[view].description}>
       {view==="services"&&<Button variant="outline" disabled={busy} onClick={()=>openProject()}><ArrowLeft size={14}/>项目列表</Button>}
       {previewButton}
       {!overview&&<span className={"content-save-state "+(dirty?"is-dirty":"")}>{dirty?<span/>:<Check size={14}/>} {dirty?"有未保存的更改":"已保存"}</span>}
@@ -201,36 +205,33 @@ export default function ContentManager(){
     {projectOverview?<div className="studio-entry-grid" role="region" aria-label="项目列表">
       {content.services.map(project=><EntryCard key={project.id} disabled={busy} title={project.names.zh} icon={project.theme==="yellow"?Sparkles:Paintbrush2} theme={project.theme} status={project.enabled?"开放预约":"已停用"} description={project.sections.length+" 个价格分组 · "+project.sections.reduce((count,section)=>count+section.items.length,0)+" 项价格"} onClick={()=>openProject(project.id)}/>)}
       <EntryCard title="添加项目" description="创建新的服务和价格菜单" icon={Plus} theme="pink" disabled={busy} add onClick={addService} footer="新增项目"/>
-    </div>:eventOverview?<>
-    <div className="content-list-toolbar"><p>{content.events.length} 个活动 · {content.events.filter(event=>event.enabled).length} 个展示中</p>{previewButton}</div>
+    </div>:eventOverview?<div className="simple-content-workspace">
+    <header className="simple-toolbar"><p className="simple-toolbar-caption">{content.events.length} 张图片 · {content.events.filter(event=>event.enabled&&event.image).length} 张展示中</p><div className="simple-toolbar-actions">{previewButton}<Button type="button" disabled={busy} onClick={addEvent}><Plus size={15}/>新增活动</Button></div></header>
     <div className="event-entry-grid" role="region" aria-label="活动列表">
       {content.events.map(event=><EventCard key={event.id} event={event} label={eventLabel(event)} busy={busy} onEdit={()=>openEvent(event.id)} onDelete={()=>{setEventDeleteError("");setDeletingEvent(event);}}/>)}
-      <EntryCard title="新增活动" description="上传活动海报，按原比例清晰展示" icon={Plus} theme="pink" disabled={busy} add onClick={addEvent} footer="创建活动"/>
+      {!content.events.length&&<p className="simple-empty">还没有活动图片</p>}
     </div>
-    </>:view==="events"?<div className="poster-workspace">
+    </div>:view==="events"?<div className="poster-workspace">
       <header className="poster-toolbar">
         <div className="poster-toolbar-title"><Button type="button" variant="ghost" size="icon" aria-label="返回活动列表" disabled={busy} onClick={()=>openEvent()}><ArrowLeft size={18}/></Button><h1>{draftEvent?"新增活动":eventLabel(event)}</h1></div>
         <div className="poster-toolbar-actions">{previewButton}<Button type="button" onClick={save} disabled={busy||!dirty}>{busy&&<Loader2 size={15} className="animate-spin"/>}保存</Button></div>
       </header>
       <PosterEditor image={event.image} enabled={event.enabled} busy={busy} isDraft={!!draftEvent} onFile={file=>{void upload(file,event.id);}} onEnabled={enabled=>updateEvent(value=>{value.enabled=enabled;})} onDelete={()=>{setEventDeleteError("");setDeletingEvent(event);}}/>
+    </div>:simpleContent?<div>
+      {view==="about"?<Editor key={lang} value={content.about[lang]} onChange={text=>update(value=>{value.about[lang]=text;})} disabled={busy} onImageUpload={uploadImage}/>
+      :<div className="simple-contact-settings">{contactFields.map(group=><section className="simple-settings-group" key={group.title}><h2>{group.title}</h2><div className="simple-contact-fields">{group.fields.map(([key,label])=><div key={key} className={key==="address"?"is-wide":""}>{field(label,content.contact[key as keyof typeof content.contact],text=>update(value=>{value.contact[key as keyof typeof value.contact]=text;}))}</div>)}</div></section>)}</div>}
     </div>:<>
     <div className="content-toolbar admin-panel">
       <div className="content-language"><Label htmlFor="content-language">编辑语言</Label><AdminSelect id="content-language" label="编辑语言" value={lang} onValueChange={value=>setLang(value as Language)} options={languages} disabled={busy}/></div>
-      <p className="content-toolbar-hint">预览会显示当前更改，保存后顾客端生效。</p>
     </div>
-    <div className={"content-editor-layout view-"+view}>
+    <div className="content-editor-layout view-services">
       <section className="admin-panel content-edit" data-color-mode="light">
-        <div className="content-panel-heading"><span className="content-panel-icon"><FileText size={19}/></span><div><h2>{view==="about"?"关于我们 · Markdown":view==="services"?service.names.zh+" · 项目与价格":views[view].title}</h2><p>{view==="about"?"支持标题、列表、图片、链接与表格。":"清晰地整理信息，让顾客更容易找到需要的内容。"}</p></div></div>
-        <fieldset disabled={busy} className="content-edit-fields">
-          {view==="about"&&<Editor value={content.about[lang]} onChange={text=>update(value=>{value.about[lang]=text||"";})} height={620} preview="edit" textareaProps={{"aria-label":"关于我们 Markdown 内容"}}/>}
-          {view==="services"&&<ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/>}
-          {view==="contact"&&<div className="content-stack">{contactFields.map(group=><section className="content-section" key={group.title}><div className="content-section-title"><h3>{group.title}</h3></div><p className="admin-field-help">{group.hint}</p><div className="admin-form-grid">{group.fields.map(([key,label])=><div key={key}>{field(label,content.contact[key as keyof typeof content.contact],text=>update(value=>{value.contact[key as keyof typeof value.contact]=text;}))}</div>)}</div></section>)}</div>}
-
-        </fieldset>
+        <div className="content-panel-heading"><span className="content-panel-icon"><FileText size={19}/></span><div><h2>{service.names.zh} · 项目与价格</h2></div></div>
+        <fieldset disabled={busy} className="content-edit-fields"><ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/></fieldset>
       </section>
-
     </div>
     </>}
+
     <Dialog open={!!deletingEvent} onOpenChange={open=>{if(!open&&!busy)setDeletingEvent(undefined);}}>
       <DialogContent closeLabel="取消删除" onEscapeKeyDown={event=>{if(busy)event.preventDefault();}} onPointerDownOutside={event=>{if(busy)event.preventDefault();}}>
         <DialogTitle>{draftEvent?.id===deletingEvent?.id?"放弃创建这个活动？":"删除「"+(deletingEvent?eventLabel(deletingEvent):"活动图片")+"」？"}</DialogTitle>
@@ -247,5 +248,5 @@ export default function ContentManager(){
         <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={()=>setDeleteOpen(false)}>取消</Button><Button type="button" variant="destructive" disabled={busy} onClick={deleteProject}>{busy&&<Loader2 size={15} className="animate-spin"/>}{draftProject?"放弃创建":"确认删除"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
-  </>;
+  </div>;
 }
