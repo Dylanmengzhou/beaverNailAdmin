@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 // 返回某个月的看板数据：按天聚合、按支付方式聚合、汇总（以及上月汇总用于环比）
 export async function GET(request: NextRequest) {
- try{requireStaff(request,true);}catch(e){return apiError(e);}
+ try{await requireStaff(request,true);}catch(e){return apiError(e);}
 
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {

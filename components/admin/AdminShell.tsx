@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {UnsavedChangesProvider,useUnsavedNavigation} from "@/components/admin/UnsavedChanges";
+import {adminApi} from "@/lib/admin-api";
 export type AdminUser = {
   id: string;
   username: string;
@@ -100,6 +101,7 @@ function AdminShellContent({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AdminUser | null>(null),
     [ready, setReady] = useState(false),
     [open, setOpen] = useState(false);
+  const [sessionError,setSessionError]=useState("");
   const [calendarVersion, setCalendarVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const calendarRefresh = useMemo(
@@ -130,14 +132,16 @@ function AdminShellContent({ children }: { children: ReactNode }) {
         value.exp * 1000 <= Date.now()
       )
         throw new Error();
-      setUser(value);
-      setReady(true);
+      const control=new AbortController();
+      setSessionError("");
+      void adminApi<AdminUser>("/api/auth/session",{signal:control.signal}).then(current=>{setUser(current);setReady(true);}).catch(error=>{if(!control.signal.aborted){setUser(null);setSessionError(error.message||"读取账号权限失败");setReady(true);}});
+      return ()=>control.abort();
     } catch {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       router.replace("/");
     }
-  }, [isLogin, router]);
+  }, [isLogin, router,pathname]);
   const active = (href: string) => {
     const [path, search] = href.split("?");
     if (path === "/dashboard/user-reservation")
@@ -181,7 +185,7 @@ function AdminShellContent({ children }: { children: ReactNode }) {
         })}
       </nav>
       <div className="admin-sidebar-bottom">
-        {user?.memberType !== "manager" && (
+        {user?.username !== "beavernail" && (
           <Link
             className="admin-personal-link"
             href="/dashboard/changeProfile"
@@ -200,7 +204,7 @@ function AdminShellContent({ children }: { children: ReactNode }) {
           <div>
             <strong>
               {user?.memberType === "manager"
-                ? "工作室管理员"
+                ? (user.username==="beavernail"?"工作室管理员":"店长 · "+(user.nailArtistName||user.username))
                 : user?.nailArtistName || user?.username}
             </strong>
             <span>{user?.username}</span>
@@ -221,8 +225,8 @@ function AdminShellContent({ children }: { children: ReactNode }) {
   if (!ready || !user)
     return (
       <div className="admin-loading-screen">
-        <Flower2 className="admin-loading-flower" size={30} />
-        <p>正在打开工作室…</p>
+        <p>{sessionError||"正在打开工作室…"}</p>
+        {sessionError&&<Button variant="outline" onClick={()=>window.location.reload()}>重新加载</Button>}
       </div>
     );
   return (

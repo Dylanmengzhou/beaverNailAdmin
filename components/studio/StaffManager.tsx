@@ -50,6 +50,7 @@ export type Staff = {
   commissionRateBps?:number|null;
   schedule: WorkWindow[] | null;
   role?: string;
+  membertype?:"staff"|"manager";
   account?: string | null;
   password?: string;
 };
@@ -57,6 +58,7 @@ export type Staff = {
 const blankStaff = (): Staff => ({
   name: "",
   active: true,
+  membertype:"staff",
   services: ["nails"],
   durationMinutes: 120,
   schedule: [{ days: [0, 1, 2, 3, 4, 5, 6], start: "10:00", end: "16:00" }],
@@ -71,6 +73,7 @@ const normalize = (item: Staff): Staff => ({
   serviceSettings: structuredClone(item.serviceSettings || {}),
   commissionRateBps:item.commissionRateBps ?? null,
   role: item.role || "L3",
+  membertype:item.membertype||"staff",
   account: item.account || "",
   password: item.password || "",
 });
@@ -275,7 +278,7 @@ export default function StaffManager({
                     }
                   />
                 </div>
-                <div className="admin-field"><label htmlFor="staff-commission">提成比例 · %</label><Input id="staff-commission" type="number" min={0} max={100} step={0.01} placeholder="未设置" value={editing.commissionRateBps==null?"":editing.commissionRateBps/100} disabled={busy} onChange={e=>setEditing(v=>({...v,commissionRateBps:e.target.value===""?null:Math.round(Number(e.target.value)*100)}))}/><small>按每单实收计算；调整比例不改变已结算订单。</small></div>
+                <div className="admin-field"><label htmlFor="staff-permission">管理权限</label><Select value={editing.membertype||"staff"} disabled={busy} onValueChange={membertype=>setEditing(value=>({...value,membertype:membertype as "staff"|"manager"}))}><SelectTrigger id="staff-permission"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="staff">员工</SelectItem><SelectItem value="manager">店长</SelectItem></SelectContent></Select><small>店长可管理全部设置并审核结算；员工只能提交自己的结算申请。</small></div>
               </div>
               <div className="staff-account-section">
                 <div className="admin-field-heading">

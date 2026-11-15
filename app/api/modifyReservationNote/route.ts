@@ -5,7 +5,7 @@ import { requireStaff } from "@/lib/studio/auth";
 import { apiError } from "@/lib/studio/http";
 export async function POST(request: Request) {
   try {
-    requireStaff(request);
+    await requireStaff(request);
     const value = z
       .object({
         reservationid: z.string().min(1),

@@ -19,6 +19,8 @@ import EventCard from "@/components/studio/EventCard";
 import PosterEditor from "@/components/studio/PosterEditor";
 import {Label} from "@/components/ui/label";
 import {studioContentSchema, type StudioContent, type CatalogService} from "@/lib/studio/content";
+import type {CommissionRules} from "@/lib/studio/settlement";
+type ManagedContent=StudioContent&{commissionRules?:CommissionRules};
 
 const Editor=dynamic(()=>import("@/components/studio/DocumentEditor"),{ssr:false,loading:()=> <p className="simple-chart-state" role="status">正在打开文档…</p>});
 const empty=()=>({zh:"",en:"",kr:""});
@@ -50,7 +52,7 @@ export default function ContentManager(){
     next.delete("create");
     confirmNavigation(()=>router.push("/dashboard/content?"+next.toString()));
   };
-  const [content,setContent]=useState<StudioContent>();
+  const [content,setContent]=useState<ManagedContent>();
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
   const [saved,setSaved]=useState("");
@@ -77,7 +79,7 @@ export default function ContentManager(){
   },[params,projectId,router]);
   useEffect(()=>{
     const control=new AbortController();
-    void adminApi<StudioContent>("/api/studio/content",{signal:control.signal}).then(value=>{
+    void adminApi<ManagedContent>("/api/studio/content",{signal:control.signal}).then(value=>{
       setContent(value);setSaved(JSON.stringify(value));
       if(params.get("create")==="1"){
         const next=new URLSearchParams(params.toString());next.delete("create");
@@ -89,7 +91,7 @@ export default function ContentManager(){
     return()=>control.abort();
   },[]);
 
-  const update=(fn:(value:StudioContent)=>void)=>setContent(value=>{
+  const update=(fn:(value:ManagedContent)=>void)=>setContent(value=>{
     if(!value)return value;
     const next=structuredClone(value);fn(next);return next;
   });
@@ -101,8 +103,10 @@ export default function ContentManager(){
     if(!parsed.success){toast.error(parsed.error.issues.map(issue=>issue.message).join("；"));return;}
     setBusy(true);
     try{
-      const value=await adminApi<StudioContent>("/api/studio/content",{
-        method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(parsed.data),
+      const previous:ManagedContent=saved?JSON.parse(saved):content;
+      const commissionUpdates=Object.entries(content.commissionRules||{}).filter(([id,rule])=>(previous.commissionRules?.[id]?.rateBps??null)!==rule.rateBps).map(([serviceId,rule])=>({serviceId,rateBps:rule.rateBps,expectedVersion:previous.commissionRules?.[serviceId]?.version||0}));
+      const value=await adminApi<ManagedContent>("/api/studio/content",{
+        method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...parsed.data,commissionUpdates}),
       });
       setContent(value);setSaved(JSON.stringify(value));setDraftProject(undefined);setDraftEvent(undefined);
       if(draftProject||draftEvent){const next=new URLSearchParams(params.toString());next.delete("create");router.replace("/dashboard/content?"+next.toString());}
@@ -128,7 +132,7 @@ export default function ContentManager(){
 
   if(error)return <PanelState title={error}><Button variant="outline" onClick={()=>location.reload()}>重新加载</Button></PanelState>;
   if(!content||!session)return <PanelState loading title="正在读取门店内容…"/>;
-  if(session.memberType!=="manager")return <PanelState title="此页面仅管理员可以编辑"/>;
+  if(session.memberType!=="manager")return <PanelState title="此页面需要店长或管理员权限"/>;
   const index=Math.max(0,content.services.findIndex(service=>service.id===chosen));
   const service=draftProject?.id===projectId?draftProject:content.services[index];
   const projectOverview=view==="services"&&!projectId,eventOverview=view==="events"&&!eventId;
@@ -178,7 +182,7 @@ export default function ContentManager(){
   const deleteProject=async()=>{
     setBusy(true);setDeleteError("");
     try{
-      if(draftProject?.id===projectId){setDraftProject(undefined);}
+      if(draftProject?.id===projectId){setDraftProject(undefined);if(saved)setContent(JSON.parse(saved));}
       else{
         const value=await adminApi<StudioContent>("/api/studio/content?service="+encodeURIComponent(service.id),{method:"DELETE"});
         setContent(value);setSaved(JSON.stringify(value));
@@ -227,7 +231,7 @@ export default function ContentManager(){
     <div className="content-editor-layout view-services">
       <section className="admin-panel content-edit" data-color-mode="light">
         <div className="content-panel-heading"><span className="content-panel-icon"><FileText size={19}/></span><div><h2>{service.names.zh} · 项目与价格</h2></div></div>
-        <fieldset disabled={busy} className="content-edit-fields"><ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/></fieldset>
+        <fieldset disabled={busy} className="content-edit-fields"><ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} commissionRate={content.commissionRules?.[service.id]?.rateBps??null} onCommissionChange={rateBps=>update(value=>{value.commissionRules={...value.commissionRules,[service.id]:{rateBps,version:value.commissionRules?.[service.id]?.version||0}};})} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/></fieldset>
       </section>
     </div>
     </>}

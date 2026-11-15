@@ -7,7 +7,7 @@ import { BookingError } from "@/lib/studio/booking-db";
 import { apiError } from "@/lib/studio/http";
 export async function GET(request: Request) {
   try {
-    requireStaff(request, true);
+    await requireStaff(request, true);
     const value = await prisma.homeContent.findUnique({
       where: { key: "homepage" },
     });
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 }
 export async function PUT(request: Request) {
   try {
-    requireStaff(request, true);
+    await requireStaff(request, true);
     const value = homeSchema.parse(await request.json());
     const ids = [
       ...new Set(

@@ -1,3 +1,7 @@
+import { requireStaff } from "@/lib/studio/auth";
+import { assertSettlementOwner } from "@/lib/studio/settlement-db";
+import { BookingError } from "@/lib/studio/booking-db";
+import { apiError } from "@/lib/studio/http";
 import prisma from "@/lib/prisma";
 import { reservationMessage, sendTelegram } from "@/lib/studio/notifications";
 import { sql } from "@/lib/sql";
@@ -21,9 +25,11 @@ export async function GET(req: Request) {
   }
 
   try {
+    const actor = await requireStaff(req);
     const result = await sql`
 			SELECT
 				r.id AS "reservationId",
+        r."nailArtistId",
         u.id AS "userId",
 				u.name,
 				u.email,
@@ -62,7 +68,7 @@ export async function GET(req: Request) {
 			WHERE r.id = ${reservationid}
 			LIMIT 1
 		`;
-    console.log(result);
+
 
     if (result.length === 0) {
       return NextResponse.json(
@@ -71,111 +77,30 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json(result[0], { status: 200 });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "未知错误";
-    return NextResponse.json(
-      { success: false, message: errorMessage },
-      { status: 500 }
-    );
-  }
+    if(actor.memberType!=="manager" && result[0].nailArtistId!==actor.id) result[0].commissionAmount=null;
+    return NextResponse.json(result[0], { status: 200,headers:{"Cache-Control":"private, no-store"} });
+  } catch (error) { return apiError(error); }
 }
 
-// 删除预约
+// Cancellation uses the authenticated actor and preserves settlement audit history.
 export async function POST(req: Request) {
-
-
-  // 同样用 URL 解析 query
-  const { searchParams } = new URL(req.url);
-  const reservationid = searchParams.get("reservationid");
-
-  // 从请求体获取操作者信息
-  const requestData = await req.json();
-  const { operatorName, operatorAccount, operatorType } = requestData;
-  console.log(operatorName, operatorAccount, operatorType);
-  if (!reservationid) {
-    return NextResponse.json(
-      { success: false, message: "预约ID不能为空" },
-      { status: 400 }
-    );
-  }
-
   try {
-    const result = await sql`
-			SELECT
-				r.id AS "reservationId",
-				u.name,
-				u."contactType",
-				u.email,
-				u.provider,
-				r.date,
-				r."timeSlot",
-				na.name AS "nailArtistName",
-				na.account AS "nailArtistAccount"
-			FROM "Reservation" r
-			JOIN "User" u ON r."userId" = u.id
-			LEFT JOIN "NailArtist" na ON r."nailArtistId" = na.id
-			WHERE r.id = ${reservationid}
-			LIMIT 1
-		`;
-
-    if (result.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "未找到预约" },
-        { status: 404 }
-      );
-    }
-
-    const notificationRecord = await prisma.reservation.findUnique({ where: { id: reservationid }, include: { user: true, nailArtist: { select: { name: true } } } });
-    await sql`
-			DELETE FROM "Reservation"
-			WHERE id = ${reservationid}
-		`;
-
-    // 使用函数来获取中文角色类型
-    const getStaffTypeText = (type: string): string => {
-      if (type === "staff") return "员工";
-      if (type === "manager") return "管理员";
-      return "未知";
-    };
-
-    // 构建操作者信息
-    const cancelledBy = operatorName
-      ? `${getStaffTypeText(operatorType)}-${operatorName}`
-      : "商家取消";
-
-    // await fetch(
-    //   "https://botbuilder.larksuite.com/api/trigger-webhook/0a5197fbd746e1eeaf3a0afa1ddb795f" as string,
-    //   {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({
-    //       msg_type: "text",
-    //       content: {
-    //         whoCancelled: cancelledBy,
-    //         username: result[0].name,
-    //         phone: result[0].email,
-    //         reservationId: result[0].reservationId,
-    //         date: new Date(result[0].date).toISOString().split("T")[0],
-    //         time: result[0].timeSlot,
-    //         nailArtist: result[0].nailArtistName || "未分配",
-    //         contactType: result[0].contactType,
-    //         provider: result[0].provider,
-    //       },
-    //     }),
-    //   }
-    // );
-    if (notificationRecord) await sendTelegram(reservationMessage(`预约取消提醒 ❌（${cancelledBy}）`, notificationRecord, notificationRecord.user, notificationRecord.nailArtist));
-    return NextResponse.json(
-      { success: true, message: "删除成功" },
-      { status: 200 }
-    );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "未知错误";
-    console.error("删除预约出错:", errorMessage);
-    return NextResponse.json(
-      { success: false, message: errorMessage },
-      { status: 500 }
-    );
-  }
+    const actor = await requireStaff(req);
+    const id = new URL(req.url).searchParams.get("reservationid");
+    if (!id) throw new BookingError("预约 ID 不能为空");
+    const record = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "Reservation" WHERE id=${id} FOR UPDATE`;
+      const booking = await tx.reservation.findUnique({where:{id},include:{user:true,nailArtist:{select:{name:true}}}});
+      if (!booking) throw new BookingError("预约不存在",404);
+      assertSettlementOwner(actor,booking.nailArtistId);
+      if (actor.memberType!=="manager" && booking.finalPrice!==null)
+        throw new BookingError("已录入结算的预约，请联系店长或管理员取消",403);
+      await tx.settlementRequest.updateMany({where:{activeReservationId:id,status:"pending"},data:{status:"cancelled",activeReservationId:null,reviewedById:actor.id,reviewedByName:actor.nailArtistName,reviewedAt:new Date(),reviewNote:"预约已取消"}});
+      await tx.reservation.delete({where:{id}});
+      return booking;
+    });
+    const cancelledBy = `${actor.memberType==="manager"?"店长或管理员":"员工"}-${actor.nailArtistName}`;
+    await sendTelegram(reservationMessage(`预约取消提醒 ❌（${cancelledBy}）`,record,record.user,record.nailArtist));
+    return NextResponse.json({success:true,message:"预约已取消"});
+  } catch(error) { return apiError(error); }
 }

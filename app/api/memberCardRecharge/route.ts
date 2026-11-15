@@ -4,7 +4,7 @@ import {apiError} from "@/lib/studio/http";
 import { sql } from "@/lib/sql";
 
 export async function POST(request: NextRequest) {
-  try { requireStaff(request,true); } catch(e) {return apiError(e);}
+  try { await requireStaff(request,true); } catch(e) {return apiError(e);}
 
 
   // 获取请求参数

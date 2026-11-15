@@ -12,9 +12,9 @@ import {Button} from "@/components/ui/button";
 import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from "@/components/ui/table";
 
 type Result={
- count:number;scope:string;staff:{id:string;name:string}[];
+ count:number;scope:string;pendingCount:number;unsubmittedCount:number;legacyCount:number;staff:{id:string;name:string}[];
  totals:{currency:string;revenue:number;received:number;commission:number;priced:number;receivedCount:number;commissionCount:number}[];
- rows:{id:string;date:string;timeSlot:string;artist:string;currency:string|null;finalPrice:number|null;receivedAmount:number|null;commissionAmount:number|null}[];
+ rows:{id:string;date:string;timeSlot:string;artist:string;currency:string|null;finalPrice:number|null;receivedAmount:number|null;commissionAmount:number|null;settlementStatus:string}[];
 };
 const currencyLabels:Record<string,string>={KRW:"韩元（KRW）",USD:"美元（USD）",CNY:"人民币（CNY）",未结算:"未标记币种"};
 
@@ -43,31 +43,30 @@ export default function PerformancePanel({month,onMonthChange}:{month:string;onM
   </section>
   {error?<div className="simple-chart-state" role="alert"><p>{error}</p><Button variant="outline" onClick={()=>setRetry(value=>value+1)}>重新加载</Button></div>:!data?<p className="simple-chart-state" role="status">正在汇总业绩…</p>:<>
    {!data.totals.length&&<p className="simple-empty">这个月还没有业绩记录</p>}
-   {data.rows.some(row=>row.finalPrice==null)&&<p className="simple-data-note">{data.rows.filter(row=>row.finalPrice==null).length} 单尚未录入金额</p>}
-   {data.totals.filter(total=>total.priced||total.receivedCount||total.commissionCount).map(total=><section className="performance-summary" key={total.currency}>
+   {(!!data.pendingCount||!!data.unsubmittedCount)&&<p className="simple-data-note settlement-counts">{!!data.pendingCount&&<Link href={"/dashboard/stats?tab="+(session?.memberType==="manager"?"review":"requests")}>{data.pendingCount} 单待审核</Link>}{!!data.unsubmittedCount&&<span>{data.unsubmittedCount} 单未提交结算</span>}</p>}
+   {data.totals.filter(total=>total.priced||total.commissionCount).map(total=><section className="performance-summary" key={total.currency}>
     <h2>{currencyLabels[total.currency]||total.currency}</h2>
     <dl className="simple-metrics">
      {[
       {title:"营业额",amount:total.revenue,count:total.priced},
-      {title:"实际收款",amount:total.received,count:total.receivedCount},
       {title:session?.memberType==="manager"?"员工提成":"个人提成",amount:total.commission,count:total.commissionCount},
      ].map(metric=><div key={metric.title}><dt>{metric.title}</dt><dd className={metric.count?undefined:"is-unrecorded"}>{metric.count?metric.amount.toLocaleString():"未录入"}</dd><small>{metric.count} 单已录入</small></div>)}
     </dl>
    </section>)}
    <details className="simple-order-details performance-details"><summary>订单明细<span>{data.rows.length} 条记录</span></summary>
     <Table>
-     <TableHeader><TableRow><TableHead>到店时间</TableHead><TableHead>服务员工</TableHead><TableHead className="text-right">营业额</TableHead><TableHead className="text-right">实收</TableHead><TableHead className="text-right">提成</TableHead></TableRow></TableHeader>
+     <TableHeader><TableRow><TableHead>到店时间</TableHead><TableHead>服务员工</TableHead><TableHead>结算状态</TableHead><TableHead className="text-right">最终价格</TableHead><TableHead className="text-right">提成</TableHead></TableRow></TableHeader>
      <TableBody>{data.rows.map(row=><TableRow key={row.id}>
       <TableCell><Link className="performance-order-link" href={"/reservation/"+row.id}><span>{row.date.slice(0,10)}<small>{row.timeSlot}</small></span><ArrowUpRight size={14}/></Link></TableCell>
       <TableCell>{row.artist}</TableCell>
+      <TableCell>{{pending:"待审核",approved:"已确认",legacy:"历史已录入",unsubmitted:"未提交"}[row.settlementStatus]||row.settlementStatus}</TableCell>
       <TableCell className={"text-right tabular-nums "+(row.finalPrice==null?"is-unrecorded":"")}>{amount(row.finalPrice,row.currency)}</TableCell>
-      <TableCell className={"text-right tabular-nums "+(row.receivedAmount==null?"is-unrecorded":"")}>{amount(row.receivedAmount,row.currency)}</TableCell>
       <TableCell className={"text-right tabular-nums "+(row.commissionAmount==null?"is-unrecorded":"")}>{amount(row.commissionAmount,row.currency)}</TableCell>
      </TableRow>)}</TableBody>
     </Table>
     {!data.rows.length&&<div className="performance-empty">当前筛选下暂无订单。</div>}
    </details>
-   <p className="performance-footnote">营业额是已录入的订单金额。实收和提成未填写时显示「未录入」；提成按结算时的实收及比例计算。</p>
+   <p className="performance-footnote">新结算经店长或管理员确认后计入统计，提成按最终价格与项目比例计算。{data.legacyCount?data.legacyCount+" 单历史已录入订单保留原金额。":""}</p>
   </>}
  </>;
 }

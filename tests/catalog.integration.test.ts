@@ -5,9 +5,9 @@ import jwt from "jsonwebtoken";
 import {createBooking} from "../lib/studio/booking-db";
 import {DEFAULT_CONTENT,contentKey} from "../lib/studio/content";
 const db=new PrismaClient(),u=new URL(process.env.DATABASE_URL!);
-assert.equal(u.host,"127.0.0.1:55432");assert.equal(u.pathname,"/beaver_studio_test");
-const prefix="catalog_test_"+Date.now(),serviceId="service_"+Date.now(),base="http://127.0.0.1:3001",web="http://127.0.0.1:3000";
-const token=(id:string,memberType:string)=>jwt.sign({id,memberType},process.env.JWT_SECRET!,{expiresIn:"5m"});
+assert.equal(u.host,"127.0.0.1:55432");assert.equal(u.pathname,"/"+(process.env.STUDIO_TEST_DB_NAME||"beaver_studio_test"));
+const prefix="catalog_test_"+Date.now(),serviceId="service_"+Date.now(),base=process.env.STUDIO_TEST_ADMIN_ORIGIN||"http://127.0.0.1:3001",web=process.env.STUDIO_TEST_CUSTOMER_ORIGIN||"http://127.0.0.1:3000";
+const token=(id:string,memberType:string)=>jwt.sign(memberType==="manager"?{id:"beavernail-id",username:"beavernail",memberType}:{id,memberType},process.env.JWT_SECRET!,{expiresIn:"5m"});
 const manager=token(prefix,"manager"),staff=token(prefix+"_staff","staff"),other=token(prefix+"_other","staff");
 const call=(path:string,who:string,method="GET",body?:unknown)=>fetch(base+path,{method,headers:{Authorization:"Bearer "+who,"Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body)});
 test("catalog, markdown, scoped performance and membership permissions",async t=>{
@@ -15,6 +15,8 @@ test("catalog, markdown, scoped performance and membership permissions",async t=
  value.about.zh="# 门店预览\n\n**你好**\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))";
  value.services.push({id:serviceId,names:{zh:"测试造型",en:"Test style",kr:"테스트"},enabled:true,theme:"yellow",sections:[],notes:[{zh:"刷卡结算时附加税 +10%",en:"Card +10%",kr:"카드 +10%"}]});
  try{
+ await db.nailArtist.create({data:{id:prefix+"_staff",name:prefix,services:["nails",serviceId],commissionRateBps:2500,active:true,durationMinutes:120,schedule:[{days:[0,1,2,3,4,5,6],start:"10:00",end:"18:00"}],serviceSettings:{nails:{durationMinutes:120,schedule:[{days:[2],start:"10:00",end:"14:00"}]},[serviceId]:{durationMinutes:60,schedule:[{days:[2],start:"13:00",end:"16:00"}]}}}});
+ await db.nailArtist.create({data:{id:prefix+"_other",name:prefix+"_other",membertype:"staff"}});
  await t.test("staff can read content, only manager can publish, markdown is sanitized",async()=>{
   assert.equal((await call("/api/studio/content",staff)).status,200);
   assert.equal((await call("/api/studio/content",staff,"PUT",value)).status,403);
@@ -23,7 +25,6 @@ test("catalog, markdown, scoped performance and membership permissions",async t=
   const p=await preview.json();assert.match(p.aboutHtml.zh,/<h1>门店预览<\/h1>/);assert.ok(!/script|javascript:/i.test(p.aboutHtml.zh));
   const publicContent=await(await fetch(web+"/api/studio/content")).json();assert.ok(publicContent.services.some((s:{id:string})=>s.id===serviceId));assert.equal(publicContent.aboutHtml.zh,p.aboutHtml.zh);
  });
- await db.nailArtist.create({data:{id:prefix+"_staff",name:prefix,services:["nails",serviceId],commissionRateBps:2500,active:true,durationMinutes:120,schedule:[{days:[0,1,2,3,4,5,6],start:"10:00",end:"18:00"}],serviceSettings:{nails:{durationMinutes:120,schedule:[{days:[2],start:"10:00",end:"14:00"}]},[serviceId]:{durationMinutes:60,schedule:[{days:[2],start:"13:00",end:"16:00"}]}}}});
  await db.user.create({data:{id:prefix+"_user",name:prefix,membershipType:"vip",provider:"test",balance:100000}});
  await t.test("custom projects have their own time windows and duration; collisions cross services",async()=>{
   const url="/api/getAvailableTimeSlots?date=2030-11-05&nailArtistId="+prefix+"_staff&serviceType=";
@@ -34,19 +35,19 @@ test("catalog, markdown, scoped performance and membership permissions",async t=
   const custom=await createBooking(db,{date:"2030-11-05",timeSlot:"14:00",nailArtistId:prefix+"_staff",serviceType:serviceId},prefix+"_user");assert.equal(custom.reservation.durationMinutes,60);
  });
  const booking=await db.reservation.findFirstOrThrow({where:{userId:prefix+"_user",serviceType:serviceId}});
- await t.test("settlement records actual received and snapshots commission",async()=>{
+ await t.test("legacy settlement writes an application and only project-based approval changes earnings",async()=>{
+  await db.projectCommission.create({data:{serviceId,rateBps:2500,updatedById:"beavernail-id"}});
   const payload={reservationid:booking.id,price:100000,receivedAmount:80000,currency:"KRW",paymentMethod:"cash"};
   assert.equal((await call("/api/modifyReservationPrice",other,"POST",payload)).status,403);
-  const settle=await call("/api/modifyReservationPrice",staff,"POST",payload);assert.equal(settle.status,200);
-  const result=(await settle.json()).reservation;assert.equal(result.commissionAmount,20000);assert.equal(result.commissionRateBps,2500);
-  await db.nailArtist.update({where:{id:prefix+"_staff"},data:{commissionRateBps:5000}});
-  assert.equal((await call("/api/modifyReservationPrice",staff,"POST",payload)).status,200);
-  assert.equal((await db.reservation.findUniqueOrThrow({where:{id:booking.id}})).commissionAmount,20000);
+  const response=await call("/api/modifyReservationPrice",staff,"POST",payload);assert.equal(response.status,200);
+  const request=(await response.json()).request;assert.equal(request.commissionAmount,25000);
+  assert.equal((await db.reservation.findUniqueOrThrow({where:{id:booking.id}})).finalPrice,null);
+  const approved=await call("/api/studio/settlements/"+request.id,manager,"POST",{action:"approve"});assert.equal(approved.status,200);
  });
  await t.test("employees cannot request another employee's earnings or manager statistics",async()=>{
   const mine=await(await call("/api/studio/performance?month=2030-11&staff=other",staff)).json();
   assert.equal(mine.scope,"self");assert.equal(mine.count,2);assert.ok(mine.rows.every((r:{nailArtistId:string})=>r.nailArtistId===prefix+"_staff"));
-  const total=mine.totals.find((v:{currency:string})=>v.currency==="KRW");assert.equal(total.revenue,100000);assert.equal(total.received,80000);assert.equal(total.commission,20000);
+  const total=mine.totals.find((v:{currency:string})=>v.currency==="KRW");assert.equal(total.revenue,100000);assert.equal(total.received,0);assert.equal(total.commission,25000);
   assert.equal((await call("/api/getReservationStats",staff)).status,403);
   assert.equal((await call("/api/getMonthlyOverview?month=2030-11",staff)).status,403);
   assert.equal((await call("/api/studio/performance",other)).status,200);
@@ -62,8 +63,8 @@ test("catalog, markdown, scoped performance and membership permissions",async t=
   assert.equal((await call("/api/getReservationStats?memberType=manager",other)).status,403);
  });
  await t.test("missing, expired and forged sessions cannot access statistics or modify studio settings",async()=>{
-  const expired=jwt.sign({id:prefix,memberType:"manager"},process.env.JWT_SECRET!,{expiresIn:-1});
-  const forged=jwt.sign({id:prefix,memberType:"manager"},"invalid-test-signing-key",{expiresIn:"5m"});
+  const expired=jwt.sign({id:"beavernail-id",username:"beavernail",memberType:"manager"},process.env.JWT_SECRET!,{expiresIn:-1});
+  const forged=jwt.sign({id:"beavernail-id",username:"beavernail",memberType:"manager"},"invalid-test-signing-key",{expiresIn:"5m"});
   for(const who of ["",expired,forged])for(const path of ["/api/studio/performance","/api/getMonthlyOverview?month=2030-11","/api/getReservationStats"])
    assert.ok([401,403].includes((await call(path,who)).status));
   assert.equal((await call("/api/studio/time-off",staff,"POST",{})).status,403);
@@ -77,7 +78,7 @@ test("catalog, markdown, scoped performance and membership permissions",async t=
   assert.equal((await db.user.findUniqueOrThrow({where:{id:prefix+"_user"}})).balance,101000);
  });
  }finally{
-  await db.reservation.deleteMany({where:{userId:prefix+"_user"}});await db.user.deleteMany({where:{id:prefix+"_user"}});await db.nailArtist.deleteMany({where:{id:prefix+"_staff"}});
+  await db.reservation.deleteMany({where:{userId:prefix+"_user"}});await db.user.deleteMany({where:{id:prefix+"_user"}});await db.nailArtist.deleteMany({where:{id:{in:[prefix+"_staff",prefix+"_other"]}}});await db.settlementRequest.deleteMany({where:{submittedById:prefix+"_staff"}});await db.projectCommission.deleteMany({where:{serviceId}});
   if(original)await db.homeContent.upsert({where:{key:contentKey},create:{key:contentKey,value:original.value!},update:{value:original.value!}});else await db.homeContent.deleteMany({where:{key:contentKey}});
   await db.$disconnect();
  }

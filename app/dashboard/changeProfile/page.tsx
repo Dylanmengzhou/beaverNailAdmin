@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import {useAdminSession} from "@/components/admin/AdminShell";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -103,12 +104,9 @@ export default function ChangeProfilePage() {
   };
 
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    username: string;
-    memberType: string;
-    name: string;
-  } | null>(null);
+  const session=useAdminSession();
+  const [profile,setProfile]=useState<{id:string;username:string;memberType:string;name:string}|null>(null);
+  const currentUser=useMemo(()=>profile||(session?{...session,name:session.nailArtistName||session.username}:null),[profile,session]);
 
   const formSchema = createFormSchema(isChangingPassword);
   const form = useForm<FormValues>({
@@ -128,46 +126,12 @@ export default function ChangeProfilePage() {
     form.clearErrors();
   }, [isChangingPassword, form]);
 
-  // 认证和权限检查
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      router.push("/");
-      return;
-    }
-
-    try {
-      // 解析JWT获取用户信息
-      const tokenParts = token.split(".");
-      if (tokenParts.length === 3) {
-        const base64Url = tokenParts[1];
-        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split("")
-            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-            .join(""),
-        );
-        const payload = JSON.parse(jsonPayload);
-        setCurrentUser({
-          id: payload.id,
-          username: payload.username,
-          memberType: payload.memberType,
-          name: payload.nailArtistName,
-        });
-      }
-    } catch (error) {
-      console.error("解析token失败:", error);
-      router.push("/");
-    }
-  }, [router]);
-
   // 权限检查
   useEffect(() => {
     if (currentUser) {
       // 检查用户权限，如果不是 manager 或 staff 则返回首页
-      if (!["staff"].includes(currentUser.memberType)) {
-        toast.error("只有员工才能更改账号信息", {
+      if (!["staff","manager"].includes(currentUser.memberType) || currentUser.username==="beavernail") {
+        toast.error("管理员账号请通过管理员配置修改", {
           position: "top-right",
         });
         router.push("/");
@@ -241,7 +205,7 @@ export default function ChangeProfilePage() {
           confirmPassword: "",
         });
         // 更新本地状态中的用户信息
-        setCurrentUser({
+        setProfile({
           id: result.data.user.id,
           username: result.data.user.account,
           memberType: result.data.user.memberType,

@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         {
           id: nailArtistInfo[0].id,
           username: nailArtistInfo[0].account,
-          memberType: nailArtistInfo[0].membertype,
+          memberType: nailArtistInfo[0].membertype==="manager"?"manager":"staff",
           nailArtistName: nailArtistInfo[0].nailArtistName,
         },
         SECRET,
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
         {
           id: nailArtistInfo[0].id,
           username: nailArtistInfo[0].account,
-          memberType: nailArtistInfo[0].membertype,
+          memberType: nailArtistInfo[0].membertype==="manager"?"manager":"staff",
           nailArtistName: nailArtistInfo[0].nailArtistName,
         },
         SECRET,
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
           id: nailArtistInfo[0].id,
           name: nailArtistInfo[0].name,
           account: nailArtistInfo[0].account,
-          memberType: nailArtistInfo[0].membertype,
+          memberType: nailArtistInfo[0].membertype==="manager"?"manager":"staff",
           nailArtistName: nailArtistInfo[0].nailArtistName,
         },
       });

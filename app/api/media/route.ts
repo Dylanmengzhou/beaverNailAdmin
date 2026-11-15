@@ -6,7 +6,7 @@ import { BookingError } from "@/lib/studio/booking-db";
 import { apiError } from "@/lib/studio/http";
 export async function POST(request: Request) {
   try {
-    const operator = requireStaff(request);
+    const operator = await requireStaff(request);
     const form = await request.formData();
     const purpose = form.get("purpose") === "reference" ? "reference" : "home";
     if (purpose === "home" && operator.memberType !== "manager")

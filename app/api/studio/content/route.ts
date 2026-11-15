@@ -5,25 +5,37 @@ import {contentKey,studioContentSchema,DEFAULT_CONTENT} from "@/lib/studio/conte
 import {BookingError,lockScheduling} from "@/lib/studio/booking-db";
 import {removeDeletedServices} from "@/lib/studio/catalog-db";
 import {apiError} from "@/lib/studio/http";
+import {z} from "zod";
+import {commissionUpdateSchema} from "@/lib/studio/settlement";
+import {commissionRules} from "@/lib/studio/settlement-db";
 export async function GET(request:Request){
- try{requireStaff(request); const saved=await prisma.homeContent.findUnique({where:{key:contentKey}});
- return NextResponse.json(saved?studioContentSchema.parse(saved.value):DEFAULT_CONTENT,{headers:{"Cache-Control":"private, no-store"}});
+ try{const actor=await requireStaff(request); const saved=await prisma.homeContent.findUnique({where:{key:contentKey}});
+ const value=saved?studioContentSchema.parse(saved.value):DEFAULT_CONTENT;
+ return NextResponse.json({...value,...(actor.memberType==="manager"?{commissionRules:await commissionRules(prisma)}:{})},{headers:{"Cache-Control":"private, no-store"}});
  }catch(e){return apiError(e);}
 }
 export async function PUT(request:Request){
- try{requireStaff(request,true);const value=studioContentSchema.parse(await request.json());
- await prisma.$transaction(async tx=>{
+ try{const actor=await requireStaff(request,true),input=await request.json(),value=studioContentSchema.parse(input);
+ const changes=z.array(commissionUpdateSchema).max(40).parse(input.commissionUpdates||[]);
+ const rules=await prisma.$transaction(async tx=>{
   await lockScheduling(tx,true);
   const saved=await tx.homeContent.findUnique({where:{key:contentKey}});
   await removeDeletedServices(tx,saved?studioContentSchema.parse(saved.value):DEFAULT_CONTENT,value);
+  for(const change of changes){
+   if(!value.services.some(service=>service.id===change.serviceId))throw new BookingError("提成设置对应的项目不存在");
+   const old=await tx.projectCommission.findUnique({where:{serviceId:change.serviceId}});
+   if((old?.version||0)!==change.expectedVersion)throw new BookingError("项目提成比例已被其他人修改，请刷新后重试",409);
+   await tx.projectCommission.upsert({where:{serviceId:change.serviceId},create:{serviceId:change.serviceId,rateBps:change.rateBps,updatedById:actor.id},update:{rateBps:change.rateBps,updatedById:actor.id,version:{increment:1}}});
+  }
   await tx.homeContent.upsert({where:{key:contentKey},create:{key:contentKey,value},update:{value}});
- });
- return NextResponse.json(value);
+  return commissionRules(tx);
+ },{maxWait:10000,timeout:15000});
+ return NextResponse.json({...value,commissionRules:rules});
  }catch(e){return apiError(e);}
 }
 export async function DELETE(request:Request){
  try{
-  requireStaff(request,true);
+  await requireStaff(request,true);
   const params=new URL(request.url).searchParams;
   const id=params.get("service"),eventId=params.get("event");
   if(!id&&!eventId)throw new BookingError("请选择要删除的项目或活动");
@@ -39,7 +51,7 @@ export async function DELETE(request:Request){
    const next=studioContentSchema.parse({...current,services,events:current.events.filter(event=>event.id!==eventId)});
    await removeDeletedServices(tx,current,next);
    await tx.homeContent.upsert({where:{key:contentKey},create:{key:contentKey,value:next},update:{value:next}});
-   return next;
+   return {...next,commissionRules:await commissionRules(tx)};
   });
   return NextResponse.json(value);
  }catch(e){return apiError(e);}

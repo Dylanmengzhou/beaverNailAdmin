@@ -6,10 +6,10 @@ import sharp from "sharp";
 import {contentKey,DEFAULT_CONTENT} from "../lib/studio/content";
 
 const db=new PrismaClient(),url=new URL(process.env.DATABASE_URL!);
-assert.equal(url.host,"127.0.0.1:55432");assert.match(url.pathname,/^\/beaver_studio_test(?:_[a-z0-9_]+)?$/);
+assert.equal(url.host,"127.0.0.1:55432");assert.match(url.pathname,/^\/beaver_(?:studio|settlement)_test(?:_[a-z0-9_]+)?$/);
 const admin=process.env.STUDIO_TEST_ADMIN_ORIGIN||"http://127.0.0.1:3001",web=process.env.STUDIO_TEST_CUSTOMER_ORIGIN||"http://127.0.0.1:3000";
 for(const origin of [admin,web])assert.ok(["localhost","127.0.0.1"].includes(new URL(origin).hostname));
-const token=jwt.sign({id:"poster_test",memberType:"manager"},process.env.JWT_SECRET!,{expiresIn:"5m"}),headers={Authorization:"Bearer "+token,"Content-Type":"application/json"};
+const token=jwt.sign({id:"beavernail-id",username:"beavernail",memberType:"manager"},process.env.JWT_SECRET!,{expiresIn:"5m"}),headers={Authorization:"Bearer "+token,"Content-Type":"application/json"};
 const id="poster_test_"+Date.now();
 test("image-only activities work through admin, preview and the unchanged 4.0.1 response contract",async()=>{
  const original=await db.homeContent.findUnique({where:{key:contentKey}});

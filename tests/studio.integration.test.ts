@@ -8,7 +8,7 @@ import { DEFAULT_HOME } from "../lib/studio/home";
 const url = new URL(process.env.DATABASE_URL || "postgresql://invalid");
 if (
   !["127.0.0.1", "localhost"].includes(url.hostname) ||
-  !url.pathname.includes("beaver_studio_test")
+  !/^\/beaver_(?:studio|settlement)_test(?:_[a-z0-9_]+)?$/.test(url.pathname)
 )
   throw new Error(
     "Integration tests require the isolated local test database.",
@@ -20,12 +20,12 @@ const userId = `${prefix}_user`,
   staffB = `${prefix}_b`;
 const day = "2030-01-08";
 const token = jwt.sign(
-  { id: "integration-manager", memberType: "manager", username: "test" },
+  { id: "beavernail-id",memberType:"manager",username:"beavernail" },
   process.env.JWT_SECRET!,
   { expiresIn: "5m" },
 );
 const staffToken = jwt.sign(
-  { id: "integration-staff", memberType: "staff" },
+  { id: staffA, memberType: "staff" },
   process.env.JWT_SECRET!,
   { expiresIn: "5m" },
 );
@@ -33,8 +33,8 @@ const headers = {
   Authorization: `Bearer ${token}`,
   "Content-Type": "application/json",
 };
-const admin = "http://127.0.0.1:3001";
-const web = "http://127.0.0.1:3000";
+const admin = process.env.STUDIO_TEST_ADMIN_ORIGIN||"http://127.0.0.1:3001";
+const web = process.env.STUDIO_TEST_CUSTOMER_ORIGIN||"http://127.0.0.1:3000";
 const schedule = [
   { days: [0, 1, 2, 3, 4, 5, 6], start: "10:00", end: "16:00" },
 ];
@@ -493,6 +493,7 @@ test("legacy calendar, customer history, stats and settlement SQL remain compati
     },
     userId,
   );
+  const oldCommission=await db.projectCommission.findUnique({where:{serviceId:"makeup"}});
   try {
     const calendar = await fetch(`${admin}/api/getNewReservation`, {
       method: "POST",
@@ -525,6 +526,7 @@ test("legacy calendar, customer history, stats and settlement SQL remain compati
         `${path}: ${await response.clone().text()}`,
       );
     }
+    await db.projectCommission.upsert({where:{serviceId:"makeup"},create:{serviceId:"makeup",rateBps:3000,updatedById:"beavernail-id"},update:{rateBps:3000}});
     const price = await fetch(`${admin}/api/modifyReservationPrice`, {
       method: "POST",
       headers,
@@ -536,6 +538,9 @@ test("legacy calendar, customer history, stats and settlement SQL remain compati
       }),
     });
     assert.equal(price.status, 200, await price.clone().text());
+    const proposal=await price.json();
+    assert.equal((await db.reservation.findUniqueOrThrow({where:{id:record.reservation.id}})).finalPrice,null);
+    const approval=await fetch(`${admin}/api/studio/settlements/${proposal.request.id}`,{method:"POST",headers,body:JSON.stringify({action:"approve"})});assert.equal(approval.status,200);
     assert.equal(
       (
         await db.reservation.findUniqueOrThrow({
@@ -559,6 +564,8 @@ test("legacy calendar, customer history, stats and settlement SQL remain compati
       25000,
     );
   } finally {
+    if(oldCommission)await db.projectCommission.update({where:{serviceId:"makeup"},data:oldCommission});else await db.projectCommission.deleteMany({where:{serviceId:"makeup"}});
+    await db.settlementRequest.deleteMany({where:{reservationKey:record.reservation.id}});
     await db.reservation.deleteMany({ where: { id: record.reservation.id } });
   }
 });

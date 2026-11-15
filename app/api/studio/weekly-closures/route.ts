@@ -19,7 +19,7 @@ const rule = z.object({ closedWeekdays: weekdays, previous: weekdays });
 
 export async function GET(request: Request) {
   try {
-    requireStaff(request);
+    await requireStaff(request);
     return NextResponse.json(
       { closedWeekdays: await getClosedWeekdays(prisma) },
       {
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    requireStaff(request, true);
+    await requireStaff(request, true);
     const { closedWeekdays, previous } = rule.parse(await request.json());
     const result = await prisma.$transaction(async (tx) => {
       await lockScheduling(tx, true);

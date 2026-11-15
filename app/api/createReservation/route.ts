@@ -7,7 +7,7 @@ import { apiError } from "@/lib/studio/http";
 import { reservationMessage, sendTelegram } from "@/lib/studio/notifications";
 export async function POST(request: Request) {
   try {
-    const operator = requireStaff(request);
+    const operator = await requireStaff(request);
     const body = await request.json();
     const userId = z.string().min(1).parse(body.userId);
     const result = await createBooking(prisma, body, userId);

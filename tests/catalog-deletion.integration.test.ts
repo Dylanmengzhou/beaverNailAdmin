@@ -6,11 +6,11 @@ import {contentKey,DEFAULT_CONTENT,type StudioContent} from "../lib/studio/conte
 
 const db=new PrismaClient(),url=new URL(process.env.DATABASE_URL!);
 assert.equal(url.host,"127.0.0.1:55432");
-assert.match(url.pathname,/^\/beaver_studio_test(?:_[a-z0-9_]+)?$/);
+assert.match(url.pathname,/^\/beaver_(?:studio|settlement)_test(?:_[a-z0-9_]+)?$/);
 const base=process.env.STUDIO_TEST_ADMIN_ORIGIN||"http://127.0.0.1:3001";
 assert.ok(["127.0.0.1","localhost"].includes(new URL(base).hostname));
 const prefix="delete_test_"+Date.now(),id=prefix+"_project";
-const manager=jwt.sign({id:prefix,memberType:"manager"},process.env.JWT_SECRET!,{expiresIn:"5m"});
+const manager=jwt.sign({id:"beavernail-id",username:"beavernail",memberType:"manager"},process.env.JWT_SECRET!,{expiresIn:"5m"});
 const staff=jwt.sign({id:prefix,memberType:"staff"},process.env.JWT_SECRET!,{expiresIn:"5m"});
 const call=(method:string,who=manager,service:string|undefined=id,body?:unknown)=>fetch(base+"/api/studio/content"+(service===undefined?"":"?service="+service),{
  method,headers:{Authorization:"Bearer "+who,"Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body),
@@ -25,6 +25,7 @@ const save=async(value:StudioContent)=>{const response=await call("PUT",manager,
 test("catalog project deletion preserves orders and removes unused configuration",async t=>{
  const original=await db.homeContent.findUnique({where:{key:contentKey}});
  try{
+  await db.nailArtist.create({data:{id:prefix,name:prefix,services:["nails",id],serviceSettings:{nails:{durationMinutes:120,schedule:[]},[id]:{durationMinutes:60,schedule:[]}}}});
   await save(fixture());
   await t.test("only a signed manager can delete; missing and unknown projects are rejected",async()=>{
    assert.equal((await call("DELETE","")).status,401);
@@ -34,7 +35,7 @@ test("catalog project deletion preserves orders and removes unused configuration
    assert.ok((await(await call("GET")).json()).services.some((service:{id:string})=>service.id===id));
   });
   await t.test("deleting an unused project cleans its staff settings and retains other saved content",async()=>{
-   await db.nailArtist.create({data:{id:prefix,name:prefix,services:["nails",id],serviceSettings:{nails:{durationMinutes:120,schedule:[]},[id]:{durationMinutes:60,schedule:[]}}}});
+
    await db.nailArtist.create({data:{id:prefix+"_only",name:prefix+"_only",services:[id],serviceSettings:{[id]:{durationMinutes:60,schedule:[]}}}});
    const content=fixture();content.about.zh="另一位管理员刚保存的门店介绍";
    await save(content);

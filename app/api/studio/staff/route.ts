@@ -10,6 +10,7 @@ import { z } from "zod";
 const managementSchema = staffSchema
   .extend({
     role: z.enum(["L1", "L2", "L3", "L4", "L5", "L6"]).optional(),
+    membertype:z.enum(["staff","manager"]).optional(),
     account: z
       .string()
       .trim()
@@ -53,10 +54,11 @@ const publicFields = {
   serviceSettings:true,
   commissionRateBps:true,
   account: true,
+  membertype:true,
 } as const;
 export async function GET(request: Request) {
   try {
-    requireStaff(request, true);
+    await requireStaff(request, true);
     const id = new URL(request.url).searchParams.get("id");
     if (id) {
       const item = await prisma.nailArtist.findUnique({
@@ -80,8 +82,8 @@ export async function GET(request: Request) {
 }
 export async function PUT(request: Request) {
   try {
-    requireStaff(request, true);
-    const { id, account, password, ...value } = managementSchema.parse(
+    await requireStaff(request, true);
+    const { id, account, password, membertype, ...value } = managementSchema.parse(
       await request.json(),
     );
     const result = await prisma.$transaction(async (tx) => {
@@ -121,9 +123,7 @@ export async function PUT(request: Request) {
           data: {
             ...value,
             ...credentials,
-            ...(account && !existing?.membertype
-              ? { membertype: "staff" }
-              : {}),
+            membertype:membertype??existing?.membertype??"staff",
           },
           select: publicFields,
         });
@@ -133,7 +133,7 @@ export async function PUT(request: Request) {
           ...value,
           ...credentials,
           role: value.role ?? "L3",
-          membertype: "staff",
+          membertype: membertype??"staff",
         },
         select: publicFields,
       });
@@ -146,7 +146,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const actor = requireStaff(request, true);
+    const actor = await requireStaff(request, true);
     const id = new URL(request.url).searchParams.get("id");
     if (!id) throw new BookingError("请选择要移除的员工", 400);
     if (id === actor.id) throw new BookingError("不能移除当前登录的员工", 409);

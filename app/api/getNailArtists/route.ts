@@ -4,7 +4,7 @@ import { apiError } from "@/lib/studio/http";
 import { requireStaff } from "@/lib/studio/auth";
 export async function GET(request: Request) {
   try {
-    requireStaff(request);
+    await requireStaff(request);
     const nailArtists = await prisma.nailArtist.findMany({
       where: { active: true },
       select: {

@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { PanelState } from "@/components/admin/PageHeading";
 import { adminFetch } from "@/lib/admin-fetch";
 import { DEFAULT_HOME, type HomeContent } from "@/lib/studio/home";
+import {useAdminSession} from "@/components/admin/AdminShell";
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await adminFetch(url, init);
@@ -25,6 +26,7 @@ const json = (value: unknown, method = "PUT") => ({
 });
 export default function StudioSettings() {
   const params = useSearchParams();
+  const session=useAdminSession();
   const section = ["home", "staff", "off"].includes(params.get("tab") || "home")
     ? params.get("tab") || "home"
     : "home";
@@ -55,33 +57,12 @@ export default function StudioSettings() {
     }
   }, []);
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      setLoading(false);
-      setError("请先登录管理端");
-      return;
+    if(!session)return;
+    if(session.memberType!=="manager"){
+      setLoading(false);setError("此页面需要店长或管理员权限");return;
     }
-    try {
-      const payload = JSON.parse(
-        new TextDecoder().decode(
-          Uint8Array.from(
-            atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
-            (c) => c.charCodeAt(0),
-          ),
-        ),
-      );
-      if (payload.memberType !== "manager") {
-        setLoading(false);
-        setError("此页面需要管理员权限");
-        return;
-      }
-      setManager(true);
-      void load();
-    } catch {
-      setLoading(false);
-      setError("登录状态无效，请重新登录");
-    }
-  }, [load]);
+    setManager(true);void load();
+  }, [session,load]);
   const perform = async (action: () => Promise<void>) => {
     setBusy(true);
     try {

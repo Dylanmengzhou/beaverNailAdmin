@@ -10,7 +10,7 @@ import {
 import { apiError } from "@/lib/studio/http";
 export async function GET(request: Request) {
   try {
-    requireStaff(request);
+    await requireStaff(request);
     return NextResponse.json(
       await prisma.timeOff.findMany({
         include: { nailArtist: { select: { name: true } } },
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
-    requireStaff(request, true);
+    await requireStaff(request, true);
     const value = timeOffSchema.parse(await request.json());
     const result = await prisma.$transaction(async (tx) => {
       await lockAllStaff(tx);
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 }
 export async function DELETE(request: Request) {
   try {
-    requireStaff(request, true);
+    await requireStaff(request, true);
     const id = new URL(request.url).searchParams.get("id");
     if (!id) throw new BookingError("缺少休息记录");
     await prisma.$transaction(async (tx) => {

@@ -20,4 +20,5 @@ export async function removeDeletedServices(tx:Prisma.TransactionClient, current
    ...(settings&&typeof settings==="object"&&!Array.isArray(settings)?{serviceSettings:Object.fromEntries(Object.entries(settings).filter(([id])=>!ids.includes(id)))}:{}),
   }});
  }
+ await tx.projectCommission.deleteMany({where:{serviceId:{in:ids}}});
 }

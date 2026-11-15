@@ -1,15 +1,15 @@
-import test, { after } from "node:test";
+import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
 
 const database = new URL(process.env.DATABASE_URL || "postgresql://invalid");
-if (!["127.0.0.1", "localhost"].includes(database.hostname) || database.pathname !== "/beaver_studio_test")
+if (!["127.0.0.1", "localhost"].includes(database.hostname) || database.pathname !== "/"+(process.env.STUDIO_TEST_DB_NAME||"beaver_studio_test"))
   throw new Error("Employee tests require the isolated local test database.");
 const db = new PrismaClient();
 const prefix = "staff_wall_test_" + Date.now();
-const base = "http://127.0.0.1:3001";
-const token = jwt.sign({ id: prefix + "_manager", memberType: "manager" }, process.env.JWT_SECRET!, { expiresIn: "5m" });
+const base = process.env.STUDIO_TEST_ADMIN_ORIGIN||"http://127.0.0.1:3001";
+const token = jwt.sign({ id: "beavernail-id",username:"beavernail",memberType: "manager" }, process.env.JWT_SECRET!, { expiresIn: "5m" });
 const employeeToken = jwt.sign({ id: prefix + "_employee", memberType: "staff" }, process.env.JWT_SECRET!, { expiresIn: "5m" });
 const headers = { Authorization: "Bearer " + token, "Content-Type": "application/json" };
 const schedule = [{ days: [0, 1, 2, 3, 4, 5, 6], start: "10:00", end: "16:00" }];
@@ -19,6 +19,7 @@ const employee = {
   active: true, durationMinutes: 120, schedule,
 };
 let id = "";
+before(async()=>{await db.nailArtist.create({data:{id:prefix+"_employee",name:prefix+"_auth",membertype:"staff"}});});
 after(async () => {
   const items = await db.nailArtist.findMany({ where: { name: { startsWith: prefix } }, select: { id: true } });
   await db.reservation.deleteMany({ where: { nailArtistId: { in: items.map((item) => item.id) } } });
@@ -97,6 +98,17 @@ test("unified employee account and schedule lifecycle", async (t) => {
     assert.ok(await db.nailArtist.findUnique({ where: { id } }));
     assert.equal(await db.reservation.count({ where: { nailArtistId: id } }), 1);
     await db.reservation.deleteMany({ where: { nailArtistId: id } });
+  });
+  await t.test("management permission is editable independently of employee grade", async () => {
+    const stored=await db.nailArtist.findUniqueOrThrow({where:{id}});
+    const roleBefore=stored.role;
+    const promoted=await save({...employee,id,account:stored.account,password:undefined,role:roleBefore,membertype:"manager"});
+    assert.equal(promoted.status,200);
+    assert.equal((await promoted.json()).role,roleBefore);
+    const session=jwt.sign({id,username:stored.account,memberType:"staff"},process.env.JWT_SECRET!,{expiresIn:"5m"});
+    assert.equal((await fetch(base+"/api/studio/staff",{headers:{Authorization:"Bearer "+session}})).status,200);
+    assert.equal((await save({...employee,id,account:stored.account,password:undefined,role:roleBefore,membertype:"staff"})).status,200);
+    assert.equal((await fetch(base+"/api/studio/staff",{headers:{Authorization:"Bearer "+session}})).status,403);
   });
   await t.test("legacy account URLs lead into the employee wall", async () => {
     for (const [path, destination] of [

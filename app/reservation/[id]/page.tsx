@@ -1,4 +1,5 @@
 "use client";
+import {useAdminSession} from "@/components/admin/AdminShell";
 import {Textarea} from "@/components/ui/textarea";
 import { adminFetch } from "@/lib/admin-fetch";
 
@@ -36,6 +37,7 @@ import { PageHeading, PanelState } from "@/components/admin/PageHeading";
 import { toast } from "sonner";
 import ReservationExtras from "@/components/studio/ReservationExtras";
 import CustomerNoteCard from "@/components/studio/CustomerNoteCard";
+import SettlementCard from "@/components/studio/SettlementCard";
 import axios from "@/lib/admin-axios";
 
 // 定义预约数据类型
@@ -63,14 +65,6 @@ type ReservationData = {
   uploadImage?: string;
 };
 
-// 定义用户数据类型
-type UserData = {
-  id: string;
-  name: string;
-  account: string;
-  memberType: string;
-};
-
 export default function ReservationDetail() {
   const params = useParams();
   const router = useRouter();
@@ -82,7 +76,8 @@ export default function ReservationDetail() {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+  const session=useAdminSession();
+  const currentUser=session?{id:session.id,name:session.nailArtistName||session.username,account:session.username,memberType:session.memberType}:null;
   const [selectedContactType, setSelectedContactType] = useState<string | null>(
     null,
   );
@@ -92,15 +87,9 @@ export default function ReservationDetail() {
   const [isNoteEditing, setIsNoteEditing] = useState(false);
   const [isNoteSaving, setIsNoteSaving] = useState(false);
   const [noteValue, setNoteValue] = useState<string>("");
-  const [isPriceEditing, setIsPriceEditing] = useState(false);
-  const [isPriceSaving, setIsPriceSaving] = useState(false);
-  const [priceValue, setPriceValue] = useState<string>("");
-  const [receivedValue,setReceivedValue]=useState("");
-  const [currencyValue, setCurrencyValue] = useState<string>("KRW");
   const [isDepositEditing, setIsDepositEditing] = useState(false);
   const [isDepositSaving, setIsDepositSaving] = useState(false);
   const [depositValue, setDepositValue] = useState<boolean>(false);
-  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   // 智能返回函数
@@ -120,32 +109,6 @@ export default function ReservationDetail() {
     // 默认返回行为
     router.back();
   };
-
-  // 获取当前登录用户信息
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      router.push("/");
-      return;
-    }
-
-    try {
-      // 从JWT中解析用户信息
-      const tokenParts = token.split(".");
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        setCurrentUser({
-          id: payload.id || "",
-          name: payload.name || payload.username || "",
-          account: payload.username || "",
-          memberType: payload.memberType || "",
-        });
-      }
-    } catch (error) {
-      console.error("解析token失败:", error);
-      router.push("/");
-    }
-  }, [router]);
 
   useEffect(() => {
     const fetchReservation = async () => {
@@ -192,20 +155,9 @@ export default function ReservationDetail() {
         };
 
         setReservation(formattedData);
-        if (data.currency) {
-          setCurrencyValue(data.currency);
-        }
         // 只有当depositPaid不是null或undefined时设置状态
         setDepositValue(data.depositPaid === true);
 
-        // 设置支付方法，优先使用数据库中的值，否则根据会员类型设置默认值
-        if (data.paymentMethod) {
-          setPaymentMethod(data.paymentMethod);
-        } else if (data.currentMemberShip === "vip") {
-          setPaymentMethod("memberCard");
-        } else {
-          setPaymentMethod("cash");
-        }
       } catch (error) {
         console.error(error);
         setReservation(null);
@@ -219,14 +171,6 @@ export default function ReservationDetail() {
     }
   }, [reservationId]);
 
-  // 格式化价格，每隔1000添加逗号
-  const formatPrice = (price: string | number | undefined): string => {
-    if (!price) return "";
-    // 确保价格是字符串类型
-    const priceStr = String(price);
-    return priceStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
-
   // 获取provider的中文说明
   const getProviderName = (provider: string): string => {
     switch (provider) {
@@ -239,24 +183,6 @@ export default function ReservationDetail() {
       case "credentials":
       default:
         return "账号密码";
-    }
-  };
-
-  // 获取支付方法的中文名称
-  const getPaymentMethodName = (method: string): string => {
-    switch (method) {
-      case "cash":
-        return "现金支付";
-      case "memberCard":
-        return "会员卡";
-      case "card":
-        return "银行卡";
-      case "wechat":
-        return "微信支付";
-      case "alipay":
-        return "支付宝";
-      default:
-        return "未设置";
     }
   };
 
@@ -347,67 +273,6 @@ export default function ReservationDetail() {
         duration: 3000,
       });
       setIsNoteSaving(false);
-    }
-  };
-
-  const handlePriceModify = async () => {
-    try {
-      if (!currentUser) {
-        toast.error("您需要登录才能修改交易价格", {
-          position: "top-center",
-          duration: 3000,
-        });
-        router.push("/");
-        return;
-      }
-
-      // 验证价格是否为整数
-      if (!/^\d+$/.test(priceValue)) {
-        toast.error("请输入有效的整数金额", {
-          position: "top-center",
-          duration: 3000,
-        });
-        return;
-      }
-      try {
-        setIsPriceSaving(true);
-        const result = await axios.post(`/api/modifyReservationPrice`, {
-          reservationid: reservationId,
-          price: priceValue,
-          receivedAmount:receivedValue===""?undefined:Number(receivedValue),
-          currency: currencyValue,
-          paymentMethod: paymentMethod,
-        });
-
-        if (result.status === 200) {
-          setIsPriceSaving(true);
-          toast.success("价格修改成功", {
-            position: "top-center",
-            duration: 3000,
-          });
-          window.location.reload();
-        } else {
-          toast.error("修改失败，请稍后重试", {
-            position: "top-center",
-            duration: 3000,
-          });
-          setIsPriceSaving(false);
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("修改失败，请稍后重试", {
-          position: "top-center",
-          duration: 3000,
-        });
-        setIsPriceSaving(false);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("修改失败，请稍后重试", {
-        position: "top-center",
-        duration: 3000,
-      });
-      setIsPriceSaving(false);
     }
   };
 
@@ -551,16 +416,6 @@ export default function ReservationDetail() {
     instagram: "Instagram",
     kakao: "KakaoTalk",
   };
-  const startPriceEdit = () => {
-    setPriceValue(reservation.price || "");
-    setReceivedValue(reservation.receivedAmount==null?"":String(reservation.receivedAmount));
-    setCurrencyValue(reservation.currency || "KRW");
-    setPaymentMethod(
-      reservation.paymentMethod ||
-        (reservation.currentMemberShip === "vip" ? "memberCard" : "cash"),
-    );
-    setIsPriceEditing(true);
-  };
   const depositLabel =
     reservation.depositPaid === true
       ? "定金已支付"
@@ -667,147 +522,8 @@ export default function ReservationDetail() {
               </div>
             )}
           </section>
+          <SettlementCard reservationId={reservationId} memberBalance={reservation.currentMemberShip==="vip"?reservation.balance:undefined} onConfirmed={booking=>setReservation(value=>value?{...value,price:booking.finalPrice==null?"":String(booking.finalPrice),currency:booking.currency||"KRW",paymentMethod:booking.paymentMethod||"cash",commissionAmount:booking.commissionAmount}:value)}/>
           <section className="admin-panel reservation-edit-card">
-            <div className="admin-panel-heading">
-              <div>
-                <h2>本次结算</h2>
-                <p>记录最终金额、币种与实际支付方式。</p>
-              </div>
-              {!isPriceEditing && (
-                <button className="admin-soft-action" onClick={startPriceEdit}>
-                  <Pencil size={12} />
-                  {reservation.price ? "修改" : "录入"}
-                </button>
-              )}
-            </div>
-            {isPriceEditing ? (
-              <>
-                <div className="admin-form-grid">
-                  <div className="admin-field">
-                    <label htmlFor="settlement-price">最终金额</label>
-                    <Input
-                      id="settlement-price"
-                      type="number"
-                      min="0"
-                      step="1"
-                      inputMode="numeric"
-                      placeholder="输入整数金额"
-                      value={priceValue}
-                      onChange={(e) => setPriceValue(e.target.value)}
-                      disabled={isPriceSaving}
-                    />
-                  </div>
-                  <div className="admin-field"><label htmlFor="settlement-received">实收金额 · 含定金</label><Input id="settlement-received" type="number" min="0" step="1" value={receivedValue} placeholder="填写实际收到的金额" disabled={isPriceSaving} onChange={e=>setReceivedValue(e.target.value)}/><small>提成按实收金额及员工比例计算。留空表示尚未确认实收。</small></div>
-                  <div className="admin-field">
-                    <label htmlFor="settlement-currency">结算币种</label>
-                    <Select
-                      value={currencyValue}
-                      onValueChange={setCurrencyValue}
-                      disabled={isPriceSaving}
-                    >
-                      <SelectTrigger
-                        id="settlement-currency"
-                        className="w-full"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["KRW", "CNY", "USD", "JPY", "EUR"].map((currency) => (
-                          <SelectItem key={currency} value={currency}>
-                            {currency}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="admin-field mt-5">
-                  <label htmlFor="settlement-payment">支付方式</label>
-                  <Select
-                    value={paymentMethod}
-                    onValueChange={setPaymentMethod}
-                    disabled={isPriceSaving}
-                  >
-                    <SelectTrigger id="settlement-payment" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["cash", "memberCard", "card", "wechat", "alipay"].map(
-                        (method) => (
-                          <SelectItem key={method} value={method}>
-                            {getPaymentMethodName(method)}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="reservation-edit-actions">
-                  <Button
-                    variant="ghost"
-                    disabled={isPriceSaving}
-                    onClick={() => setIsPriceEditing(false)}
-                  >
-                    取消
-                  </Button>
-                  <Button
-                    disabled={
-                      isPriceSaving ||
-                      !/^\d+$/.test(priceValue) ||
-                      (priceValue === (reservation.price || "") &&
-                        currencyValue === (reservation.currency || "KRW") &&
-                        paymentMethod === reservation.paymentMethod)
-                    }
-                    onClick={handlePriceModify}
-                  >
-                    {isPriceSaving ? "保存中…" : "保存结算"}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="reservation-price">
-                  {reservation.price
-                    ? formatPrice(reservation.price)
-                    : "尚未结算"}{" "}
-                  {reservation.price && (
-                    <small>{reservation.currency || "KRW"}</small>
-                  )}
-                </div>
-                <div className="customer-info-row mt-3">
-                  <span>支付方式</span>
-                  <strong>
-                    {reservation.price
-                      ? getPaymentMethodName(reservation.paymentMethod || "")
-                      : "待结算后记录"}
-                  </strong>
-                </div>
-                {reservation.currentMemberShip === "vip" && (
-                  <div className="customer-info-row">
-                    <span>
-                      {reservation.price &&
-                      reservation.paymentMethod === "memberCard"
-                        ? "本次结算后余额"
-                        : "本次结算前余额"}
-                    </span>
-                    <strong>
-                      {formatPrice(
-                        Math.max(
-                          0,
-                          Number(reservation.balance || 0) -
-                            (reservation.price &&
-                            reservation.paymentMethod === "memberCard"
-                              ? Number(reservation.price)
-                              : 0),
-                        ),
-                      )}{" "}
-                      KRW
-                    </strong>
-                  </div>
-                )}
-              </>
-            )}
-            <div className="admin-form-divider" />
             <div className="admin-panel-heading">
               <h2>定金状态</h2>
               {!isDepositEditing && (

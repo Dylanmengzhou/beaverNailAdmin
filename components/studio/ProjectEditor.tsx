@@ -5,13 +5,15 @@ import {AdminSelect, SettingSwitch, TextField} from "@/components/admin/FormCont
 import {Button} from "@/components/ui/button";
 import {Textarea} from "@/components/ui/textarea";
 import {Label} from "@/components/ui/label";
+import {Input} from "@/components/ui/input";
 import type {CatalogService} from "@/lib/studio/content";
 
 const empty=()=>({zh:"",en:"",kr:""});
 const themes=[{value:"pink",label:"粉色"},{value:"yellow",label:"黄色"},{value:"lilac",label:"紫色"},{value:"mint",label:"绿色"}];
 
-export default function ProjectEditor({service,lang,busy,onChange,onDelete,isDraft}:{
+export default function ProjectEditor({service,lang,busy,onChange,onDelete,isDraft,commissionRate,onCommissionChange}:{
  service:CatalogService;lang:"zh"|"en"|"kr";busy:boolean;onChange:(update:(service:CatalogService)=>void)=>void;onDelete:()=>void;isDraft:boolean;
+ commissionRate:number|null;onCommissionChange:(value:number|null)=>void;
 }){
  const field=(label:string,value:string,change:(text:string)=>void)=>
   <TextField label={label} value={value} disabled={busy} onChange={event=>change(event.target.value)}/>;
@@ -21,6 +23,7 @@ export default function ProjectEditor({service,lang,busy,onChange,onDelete,isDra
    {field("项目名称",service.names[lang],text=>onChange(value=>{value.names[lang]=text;}))}
    <div className="admin-field"><Label htmlFor="service-theme">主题颜色</Label><AdminSelect id="service-theme" label="主题颜色" value={service.theme} disabled={busy} onValueChange={theme=>onChange(value=>{value.theme=theme as CatalogService["theme"];})} options={themes.map(theme=>({value:theme.value,label:<span className="theme-option"><i className={"theme-dot theme-"+theme.value}/>{theme.label}</span>}))}/></div>
    <SettingSwitch label="开放顾客预约" description="关闭后停止接受新预约，已有订单仍会保留。" checked={service.enabled} disabled={busy} onCheckedChange={enabled=>onChange(value=>{value.enabled=enabled;})}/>
+   <div className="admin-field"><Label htmlFor="project-commission">员工提成比例 · %</Label><Input id="project-commission" type="number" min={0} max={100} step={0.01} value={commissionRate==null?"":commissionRate/100} placeholder="请设置该项目的提成比例" disabled={busy} onChange={event=>onCommissionChange(event.target.value===""?null:Math.round(Number(event.target.value)*100))}/><p className="admin-field-help">按最终价格计算。员工提交后由店长或管理员审核；修改比例只影响新申请。</p></div>
    <p className="content-tip">员工、服务时长和工作时段在「员工与排班」中分别设置。</p>
   </section>
   <div className="project-editor-section-heading"><h3>价格菜单</h3><p>价格分组、项目和说明会一起展示在顾客端。</p></div>

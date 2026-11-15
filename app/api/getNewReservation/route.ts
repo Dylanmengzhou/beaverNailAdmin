@@ -24,7 +24,7 @@ const rangeSchema = z
 
 export async function POST(request: NextRequest) {
   try {
-    const actor = requireStaff(request);
+    const actor = await requireStaff(request);
     const { startDate, endDate } = rangeSchema.parse(await request.json());
     // Calendar scope comes from the verified session, never the supplied loginUser.
     const [closedWeekdays, reservations] = await Promise.all([

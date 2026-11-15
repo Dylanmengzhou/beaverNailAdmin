@@ -6,7 +6,7 @@ import { BookingError } from "@/lib/studio/booking-db";
 import { apiError } from "@/lib/studio/http";
 export async function GET(request: Request) {
   try {
-    requireStaff(request);
+    await requireStaff(request);
     const userId = new URL(request.url).searchParams.get("userId");
     if (!userId) throw new BookingError("顾客 ID 不能为空");
     const user = await prisma.user.findUnique({
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 }
 export async function PATCH(request: Request) {
   try {
-    requireStaff(request,true);
+    await requireStaff(request,true);
     const value = z
       .object({ userId: z.string().min(1), note: z.string().trim().max(2000) })
       .parse(await request.json());

@@ -6,7 +6,7 @@ import { daySchema, serviceSchema } from "@/lib/studio/validation";
 import { apiError } from "@/lib/studio/http";
 export async function GET(request: Request) {
   try {
-    requireStaff(request);
+    await requireStaff(request);
     const p = new URL(request.url).searchParams;
     const day = daySchema.parse(p.get("date"));
     const service = serviceSchema.parse(p.get("serviceType") || "nails");

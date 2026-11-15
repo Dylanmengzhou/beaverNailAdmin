@@ -1,4 +1,5 @@
 "use client";
+import {useAdminSession} from "@/components/admin/AdminShell";
 import {useServiceCatalog} from "@/lib/use-service-catalog";
 import {DatePicker} from "@/components/admin/FormControls";
 import CustomerNoteCard from "@/components/studio/CustomerNoteCard";
@@ -74,12 +75,7 @@ export default function UserDetailPage() {
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId");
 
-  // 当前登录用户
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    username: string;
-    memberType: string;
-  } | null>(null);
+  const currentUser=useAdminSession();
 
   // 用户信息
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -170,30 +166,6 @@ export default function UserDetailPage() {
         return "未设置";
     }
   };
-
-  // 认证和权限检查
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      router.push("/");
-      return;
-    }
-
-    try {
-      const tokenParts = token.split(".");
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        setCurrentUser({
-          id: payload.id,
-          username: payload.username,
-          memberType: payload.memberType,
-        });
-      }
-    } catch (error) {
-      console.error("解析token失败:", error);
-      router.push("/");
-    }
-  }, [router]);
 
   // 权限检查
   useEffect(() => {

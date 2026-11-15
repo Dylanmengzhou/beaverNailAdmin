@@ -77,6 +77,10 @@ model Reservation {
   finalPrice        Int?
   currency          String?
   depositPaid       Boolean?
+  settlementVersion Int         @default(0)
+  settlementApprovedAt DateTime?
+  settlementApprovedById String?
+  settlementRequests SettlementRequest[]
   nailArtist        NailArtist? @relation(fields: [nailArtistId], references: [id])
   user              User        @relation(fields: [userId], references: [id])
 
@@ -135,4 +139,45 @@ model HomeContent {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// Private business settings; never stored in the customer-facing catalog JSON.
+model ProjectCommission {
+  serviceId String @id
+  rateBps Int?
+  version Int @default(1)
+  updatedById String
+  updatedAt DateTime @updatedAt
+}
+
+model SettlementRequest {
+  id String @id @default(cuid())
+  reservationId String?
+  reservation Reservation? @relation(fields:[reservationId], references:[id], onDelete:SetNull)
+  reservationKey String
+  activeReservationId String? @unique
+  nailArtistId String?
+  artistName String
+  serviceType String
+  serviceName String
+  date DateTime
+  timeSlot String
+  price Int
+  currency String
+  paymentMethod String
+  commissionRateBps Int
+  commissionAmount Int
+  baseVersion Int
+  status String @default("pending")
+  submittedById String
+  submittedByName String
+  submittedAt DateTime @default(now())
+  reviewedById String?
+  reviewedByName String?
+  reviewedAt DateTime?
+  reviewNote String?
+
+  @@index([status, submittedAt])
+  @@index([nailArtistId, submittedAt])
+  @@index([reservationKey, submittedAt])
 }

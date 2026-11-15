@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export async function GET(request:Request) {
- try{requireStaff(request,true);}catch(e){return apiError(e);}
+ try{await requireStaff(request,true);}catch(e){return apiError(e);}
 
 
 

@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 const database = new URL(process.env.DATABASE_URL || "postgresql://invalid");
-if (database.host !== "127.0.0.1:55432" || !database.pathname.startsWith("/beaver_studio_test"))
+if (database.host !== "127.0.0.1:55432" || !/^\/beaver_(?:studio|settlement)_test(?:_[a-z0-9_]+)?$/.test(database.pathname))
   throw new Error("Manager login tests require the isolated local database");
-const endpoint = "http://127.0.0.1:3001/api/auth/login";
+const endpoint = (process.env.STUDIO_TEST_ADMIN_ORIGIN||"http://127.0.0.1:3001")+"/api/auth/login";
 const login = (body: unknown) => fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 test("manager login rejects malformed credentials and incorrect passwords", async () => {
   for (const body of [null, {}, { username: {}, password: "anything" }, { username: "beavernail", password: "" }])

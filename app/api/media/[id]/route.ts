@@ -11,7 +11,7 @@ export async function GET(
     const { id } = await params;
     const asset = await prisma.mediaAsset.findUnique({ where: { id } });
     if (!asset) throw new BookingError("图片不存在", 404);
-    if (asset.purpose !== "home") requireStaff(request);
+    if (asset.purpose !== "home") await requireStaff(request);
     return new NextResponse(new Uint8Array(asset.data), {
       headers: {
         "Content-Type": asset.mimeType,
