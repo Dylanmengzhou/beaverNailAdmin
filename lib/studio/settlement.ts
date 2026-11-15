@@ -4,7 +4,7 @@ export const moneySchema=z.union([z.number(),z.string().regex(/^\d+$/)]).transfo
 export const settlementInputSchema=z.object({
  reservationid:z.string().min(1),price:moneySchema,
  currency:z.enum(["KRW","CNY","USD"]),paymentMethod:z.enum(["cash","memberCard","card","wechat","alipay"]),
- version:z.number().int().nonnegative().optional(),
+ version:z.number().int().nonnegative().optional(),policyId:z.string().min(1).optional(),
 });
 export const commissionUpdateSchema=z.object({serviceId:z.string().min(1),rateBps:z.number().int().min(0).max(10000).nullable(),expectedVersion:z.number().int().nonnegative()});
 export const commissionForPrice=(price:number,rateBps:number)=>Math.round(price*rateBps/10000);

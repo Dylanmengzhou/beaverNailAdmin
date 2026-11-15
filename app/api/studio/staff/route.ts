@@ -162,6 +162,7 @@ export async function DELETE(request: Request) {
           "这位员工有关联预约，无法移除。可以关闭开放预约，保留历史记录。",
           409,
         );
+      await tx.commissionPolicy.deleteMany({where:{nailArtistId:id}});
       await tx.nailArtist.delete({ where: { id } });
     });
     return NextResponse.json({ success: true });

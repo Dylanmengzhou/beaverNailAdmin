@@ -1,3 +1,4 @@
+import {lockCommissionMonths,recalculateCommissionMonth,scopeFor} from "@/lib/studio/commission-db";
 import { requireStaff } from "@/lib/studio/auth";
 import { assertSettlementOwner } from "@/lib/studio/settlement-db";
 import { BookingError } from "@/lib/studio/booking-db";
@@ -89,16 +90,21 @@ export async function POST(req: Request) {
     const id = new URL(req.url).searchParams.get("reservationid");
     if (!id) throw new BookingError("预约 ID 不能为空");
     const record = await prisma.$transaction(async tx => {
+      const initial=await tx.reservation.findUnique({where:{id},select:{nailArtistId:true,serviceType:true,date:true,currency:true}});
+      const scope=initial?.nailArtistId?scopeFor(initial,initial.currency||"KRW"):null;
+      if(scope)await lockCommissionMonths(tx,[scope]);
       await tx.$queryRaw`SELECT id FROM "Reservation" WHERE id=${id} FOR UPDATE`;
       const booking = await tx.reservation.findUnique({where:{id},include:{user:true,nailArtist:{select:{name:true}}}});
       if (!booking) throw new BookingError("预约不存在",404);
+      if(initial&&(booking.currency!==initial.currency||booking.nailArtistId!==initial.nailArtistId||booking.serviceType!==initial.serviceType||booking.date.getTime()!==initial.date.getTime()))throw new BookingError("订单已变更，请刷新后重试",409);
       assertSettlementOwner(actor,booking.nailArtistId);
       if (actor.memberType!=="manager" && booking.finalPrice!==null)
         throw new BookingError("已录入结算的预约，请联系店长或管理员取消",403);
       await tx.settlementRequest.updateMany({where:{activeReservationId:id,status:"pending"},data:{status:"cancelled",activeReservationId:null,reviewedById:actor.id,reviewedByName:actor.nailArtistName,reviewedAt:new Date(),reviewNote:"预约已取消"}});
       await tx.reservation.delete({where:{id}});
+      if(scope&&booking.finalPrice!==null)await recalculateCommissionMonth(tx,scope,actor,"cancel:"+id);
       return booking;
-    });
+    },{maxWait:10000,timeout:30000});
     const cancelledBy = `${actor.memberType==="manager"?"店长或管理员":"员工"}-${actor.nailArtistName}`;
     await sendTelegram(reservationMessage(`预约取消提醒 ❌（${cancelledBy}）`,record,record.user,record.nailArtist));
     return NextResponse.json({success:true,message:"预约已取消"});

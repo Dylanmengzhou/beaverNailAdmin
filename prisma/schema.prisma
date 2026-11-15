@@ -81,6 +81,9 @@ model Reservation {
   settlementApprovedAt DateTime?
   settlementApprovedById String?
   settlementRequests SettlementRequest[]
+  commissionPolicySnapshot Json?
+  commissionRevenueBasis Float?
+  commissionAdjustments CommissionAdjustment[]
   nailArtist        NailArtist? @relation(fields: [nailArtistId], references: [id])
   user              User        @relation(fields: [userId], references: [id])
 
@@ -167,6 +170,11 @@ model SettlementRequest {
   paymentMethod String
   commissionRateBps Int
   commissionAmount Int
+  commissionPolicySnapshot Json?
+  commissionRevenueBasis Float?
+  approvedCommissionAmount Int?
+  approvedCommissionRateBps Int?
+  approvedRevenueBasis Float?
   baseVersion Int
   status String @default("pending")
   submittedById String
@@ -180,4 +188,41 @@ model SettlementRequest {
   @@index([status, submittedAt])
   @@index([nailArtistId, submittedAt])
   @@index([reservationKey, submittedAt])
+}
+
+// Published rules are append-only. Each order keeps its own immutable snapshot.
+model CommissionPolicy {
+  id String @id @default(cuid())
+  serviceId String
+  nailArtistId String?
+  currency String @default("KRW")
+  effectiveFrom String
+  tiers Json
+  createdById String
+  createdAt DateTime @default(now())
+  @@index([serviceId, currency, effectiveFrom])
+}
+
+// Whole-month tier adjustments retain the before/after calculation for each order.
+model CommissionAdjustment {
+  id String @id @default(cuid())
+  reservationId String?
+  reservation Reservation? @relation(fields:[reservationId], references:[id], onDelete:SetNull)
+  reservationKey String
+  triggerKey String
+  nailArtistId String
+  serviceType String
+  month String
+  currency String
+  finalPrice Int
+  previousAmount Int?
+  commissionAmount Int
+  commissionRateBps Int
+  revenueBasis Float
+  policySnapshot Json
+  actorId String
+  actorName String
+  createdAt DateTime @default(now())
+  @@index([reservationKey, createdAt])
+  @@index([nailArtistId, serviceType, month])
 }

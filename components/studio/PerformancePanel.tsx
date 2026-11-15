@@ -14,7 +14,7 @@ import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from "@/compon
 type Result={
  count:number;scope:string;pendingCount:number;unsubmittedCount:number;legacyCount:number;staff:{id:string;name:string}[];
  totals:{currency:string;revenue:number;received:number;commission:number;priced:number;receivedCount:number;commissionCount:number}[];
- rows:{id:string;date:string;timeSlot:string;artist:string;currency:string|null;finalPrice:number|null;receivedAmount:number|null;commissionAmount:number|null;settlementStatus:string}[];
+ rows:{id:string;date:string;timeSlot:string;artist:string;currency:string|null;finalPrice:number|null;receivedAmount:number|null;commissionAmount:number|null;settlementStatus:string;commissionRateBps?:number|null;commissionPolicySnapshot?:{effectiveFrom:string|null}|null}[];
 };
 const currencyLabels:Record<string,string>={KRW:"韩元（KRW）",USD:"美元（USD）",CNY:"人民币（CNY）",未结算:"未标记币种"};
 
@@ -58,7 +58,7 @@ export default function PerformancePanel({month,onMonthChange}:{month:string;onM
      <TableHeader><TableRow><TableHead>到店时间</TableHead><TableHead>服务员工</TableHead><TableHead>结算状态</TableHead><TableHead className="text-right">最终价格</TableHead><TableHead className="text-right">提成</TableHead></TableRow></TableHeader>
      <TableBody>{data.rows.map(row=><TableRow key={row.id}>
       <TableCell><Link className="performance-order-link" href={"/reservation/"+row.id}><span>{row.date.slice(0,10)}<small>{row.timeSlot}</small></span><ArrowUpRight size={14}/></Link></TableCell>
-      <TableCell>{row.artist}</TableCell>
+      <TableCell>{row.artist}{row.commissionPolicySnapshot&&<small className="performance-rule-date">规则：{row.commissionPolicySnapshot.effectiveFrom||"历史固定"}{row.commissionPolicySnapshot.effectiveFrom?" 起":""} · 员工 {(row.commissionRateBps||0)/100}%</small>}</TableCell>
       <TableCell>{{pending:"待审核",approved:"已确认",legacy:"历史已录入",unsubmitted:"未提交"}[row.settlementStatus]||row.settlementStatus}</TableCell>
       <TableCell className={"text-right tabular-nums "+(row.finalPrice==null?"is-unrecorded":"")}>{amount(row.finalPrice,row.currency)}</TableCell>
       <TableCell className={"text-right tabular-nums "+(row.commissionAmount==null?"is-unrecorded":"")}>{amount(row.commissionAmount,row.currency)}</TableCell>
@@ -66,7 +66,7 @@ export default function PerformancePanel({month,onMonthChange}:{month:string;onM
     </Table>
     {!data.rows.length&&<div className="performance-empty">当前筛选下暂无订单。</div>}
    </details>
-   <p className="performance-footnote">新结算经店长或管理员确认后计入统计，提成按最终价格与项目比例计算。{data.legacyCount?data.legacyCount+" 单历史已录入订单保留原金额。":""}</p>
+   <p className="performance-footnote">新结算经店长或管理员确认后计入统计，提成按最终价格、每单原日期规则与当月本项目营业额档位计算。{data.legacyCount?data.legacyCount+" 单历史已录入订单保留原金额。":""}</p>
   </>}
  </>;
 }

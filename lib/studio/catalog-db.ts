@@ -21,4 +21,5 @@ export async function removeDeletedServices(tx:Prisma.TransactionClient, current
   }});
  }
  await tx.projectCommission.deleteMany({where:{serviceId:{in:ids}}});
+ await tx.commissionPolicy.deleteMany({where:{serviceId:{in:ids}}});
 }

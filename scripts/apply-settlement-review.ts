@@ -5,10 +5,11 @@ import {PrismaClient} from "@prisma/client";
 // Run with an explicitly chosen env file. This additive migration never changes
 // existing prices, member balances, commission snapshots, or employee roles.
 if(!process.argv.includes("--apply"))throw new Error("Pass --apply with the intended database environment");
-const db=new PrismaClient(),name="20261115_settlement_review";
+const db=new PrismaClient();
+const name=process.argv.includes("--tiers")?"20261115_commission_tiers":"20261115_settlement_review";
 async function main(){
 try{
- const sql=await readFile(resolve(__dirname,"../prisma/changes/20261115_settlement_review.sql"),"utf8");
+ const sql=await readFile(resolve(__dirname,"../prisma/changes/"+name+".sql"),"utf8");
  if(/(?:^|;)\s*(?:--[^\n]*\n\s*)*(?:DROP|TRUNCATE|DELETE|UPDATE)\b/i.test(sql))throw new Error("Only additive schema changes are allowed");
  const applied=await db.$transaction(async tx=>{
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(94271632)::text`;

@@ -231,7 +231,7 @@ export default function ContentManager(){
     <div className="content-editor-layout view-services">
       <section className="admin-panel content-edit" data-color-mode="light">
         <div className="content-panel-heading"><span className="content-panel-icon"><FileText size={19}/></span><div><h2>{service.names.zh} · 项目与价格</h2></div></div>
-        <fieldset disabled={busy} className="content-edit-fields"><ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} commissionRate={content.commissionRules?.[service.id]?.rateBps??null} onCommissionChange={rateBps=>update(value=>{value.commissionRules={...value.commissionRules,[service.id]:{rateBps,version:value.commissionRules?.[service.id]?.version||0}};})} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/></fieldset>
+        <fieldset disabled={busy} className="content-edit-fields"><ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/></fieldset>
       </section>
     </div>
     </>}
