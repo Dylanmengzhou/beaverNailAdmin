@@ -16,6 +16,7 @@ type Result={
  totals:{currency:string;revenue:number;received:number;commission:number;priced:number;receivedCount:number;commissionCount:number}[];
  rows:{id:string;date:string;timeSlot:string;artist:string;currency:string|null;finalPrice:number|null;receivedAmount:number|null;commissionAmount:number|null}[];
 };
+const currencyLabels:Record<string,string>={KRW:"韩元（KRW）",USD:"美元（USD）",CNY:"人民币（CNY）",未结算:"未标记币种"};
 
 export default function PerformancePanel({month,onMonthChange}:{month:string;onMonthChange:(value:string)=>void}){
  const session=useAdminSession();
@@ -36,7 +37,7 @@ export default function PerformancePanel({month,onMonthChange}:{month:string;onM
  return <>
 
   <section className="simple-filters performance-filters" aria-label="业绩筛选">
-   <div className="admin-field"><Label>预约月份</Label><MonthPicker value={month} onChange={onMonthChange} ariaLabel="预约月份"/></div>
+   <div className="admin-field"><Label>到店月份</Label><MonthPicker value={month} onChange={onMonthChange} ariaLabel="到店月份"/></div>
    {session?.memberType==="manager"&&<div className="admin-field"><Label htmlFor="performance-staff">服务员工</Label><AdminSelect id="performance-staff" label="服务员工" value={staff} onValueChange={setStaff} options={[{value:"",label:"全部员工"},...people.map(person=>({value:person.id,label:person.name}))]}/></div>}
    <span className="performance-booking-count">{data?data.count+" 次预约":"正在汇总…"}</span>
   </section>
@@ -44,13 +45,13 @@ export default function PerformancePanel({month,onMonthChange}:{month:string;onM
    {!data.totals.length&&<p className="simple-empty">这个月还没有业绩记录</p>}
    {data.rows.some(row=>row.finalPrice==null)&&<p className="simple-data-note">{data.rows.filter(row=>row.finalPrice==null).length} 单尚未录入金额</p>}
    {data.totals.filter(total=>total.priced||total.receivedCount||total.commissionCount).map(total=><section className="performance-summary" key={total.currency}>
-    <h2>{total.currency}</h2>
+    <h2>{currencyLabels[total.currency]||total.currency}</h2>
     <dl className="simple-metrics">
      {[
       {title:"营业额",amount:total.revenue,count:total.priced},
       {title:"实际收款",amount:total.received,count:total.receivedCount},
       {title:session?.memberType==="manager"?"员工提成":"个人提成",amount:total.commission,count:total.commissionCount},
-     ].map(metric=><div key={metric.title}><dt>{metric.title}</dt><dd>{metric.amount.toLocaleString()}</dd><small>{metric.count} 单已录入</small></div>)}
+     ].map(metric=><div key={metric.title}><dt>{metric.title}</dt><dd className={metric.count?undefined:"is-unrecorded"}>{metric.count?metric.amount.toLocaleString():"未录入"}</dd><small>{metric.count} 单已录入</small></div>)}
     </dl>
    </section>)}
    <details className="simple-order-details performance-details"><summary>订单明细<span>{data.rows.length} 条记录</span></summary>
@@ -66,7 +67,7 @@ export default function PerformancePanel({month,onMonthChange}:{month:string;onM
     </Table>
     {!data.rows.length&&<div className="performance-empty">当前筛选下暂无订单。</div>}
    </details>
-   <p className="performance-footnote">历史订单没有录入实收或提成时保留「未录入」。提成按每单实收及结算时的比例计算。</p>
+   <p className="performance-footnote">营业额是已录入的订单金额。实收和提成未填写时显示「未录入」；提成按结算时的实收及比例计算。</p>
   </>}
  </>;
 }

@@ -49,13 +49,13 @@ export function OverviewTab({month,onMonthChange}:{month:string;onMonthChange:(v
  const payments=[...(data?.byPayment||[])].sort((a,b)=>b.count-a.count),paymentCount=payments.reduce((sum,row)=>sum+row.count,0);
  const slots=[...(data?.byTimeSlot||[])].sort((a,b)=>a.slot.localeCompare(b.slot)).map(row=>({slot:row.slot,预约数:row.count}));
  return <>
-  <div className="simple-filters"><span className="simple-filter-label">预约月份</span><MonthPicker value={month} max={currentMonth()} onChange={onMonthChange} ariaLabel="预约月份"/></div>
+  <div className="simple-filters"><span className="simple-filter-label">到店月份</span><MonthPicker value={month} max={currentMonth()} onChange={onMonthChange} ariaLabel="到店月份"/></div>
   {!data?<Loading error={error} retry={()=>setRetry(value=>value+1)}/>:<>
    <dl className="simple-metrics overview-metrics">{[
     {label:"预约数",value:number(data.summary.count),change:countChange},
-    {label:"营业额 · KRW",value:number(data.summary.revenue),change:revenueChange},
-    {label:"客单价 · KRW",value:number(data.summary.pricedCount?Math.round(data.summary.revenue/data.summary.pricedCount):0)},
-    {label:"已标价订单 · KRW",value:data.summary.pricedCount+" 单"},
+    {label:"营业额 · 韩元",value:number(data.summary.revenue),change:revenueChange},
+    {label:"客单价 · 韩元",value:number(data.summary.pricedCount?Math.round(data.summary.revenue/data.summary.pricedCount):0)},
+    {label:"已标价订单 · 韩元",value:data.summary.pricedCount+" 单"},
    ].map(item=><div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd>{item.change!=null&&<small>环比 {item.change>0?"+":""}{item.change}%</small>}</div>)}</dl>
    {!data.summary.count?<p className="simple-empty">该月暂无预约数据</p>:<div className="stats-chart-grid">
     <ChartPanel title="每日预约"><ResponsiveContainer width="100%" height={230}><BarChart data={daily}><CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false}/><XAxis dataKey="day" tick={axis} tickLine={false} axisLine={false} interval="preserveStartEnd"/><YAxis tick={axis} tickLine={false} axisLine={false} width={30} allowDecimals={false}/><Tooltip labelFormatter={value=>m+"月"+value+"日"}/><Bar dataKey="预约数" fill={colors[0]} radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></ChartPanel>
@@ -88,9 +88,9 @@ export function TrendsTab(){
   <div className="simple-filters"><span className="simple-filter-label">时间范围</span><MonthPicker value={start} max={end||undefined} onChange={setStart} ariaLabel="开始月份"/><span className="simple-filter-label">至</span><MonthPicker value={end} min={start||undefined} onChange={setEnd} ariaLabel="结束月份"/><span className="simple-filter-count">{months.length} 个月</span></div>
   {!points.length?<p className="simple-empty">当前范围暂无预约数据</p>:<div className="stats-trend-grid">
    <ChartPanel title="每月预约"><TrendLine data={points} metric="预约数"/></ChartPanel>
-   <ChartPanel title="每月营业额 · KRW"><TrendLine data={points} metric="营业额"/></ChartPanel>
-   <ChartPanel title="每月客单价 · KRW" expandable><TrendLine data={points} metric="客单价"/></ChartPanel>
-   <ChartPanel title="员工业绩" expandable><div className="stats-metric-switch" role="group" aria-label="员工业绩指标"><Button size="sm" variant={metric==="count"?"secondary":"ghost"} aria-pressed={metric==="count"} onClick={()=>setMetric("count")}>预约数</Button><Button size="sm" variant={metric==="revenue"?"secondary":"ghost"} aria-pressed={metric==="revenue"} onClick={()=>setMetric("revenue")}>营业额 · KRW</Button></div><ResponsiveContainer width="100%" height={260}><LineChart data={byArtist}><CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false}/><XAxis dataKey="month" tick={axis} tickLine={false} axisLine={false}/><YAxis tick={axis} tickLine={false} axisLine={false} allowDecimals={false} width={55}/><Tooltip formatter={value=>number(Number(value))}/><Legend wrapperStyle={{fontSize:11}}/>{data.artists.map((artist,index)=><Line key={artist.id} dataKey={artist.id} name={artist.name} type="monotone" stroke={colors[index%colors.length]} strokeWidth={2} dot={{r:2}}/>)}</LineChart></ResponsiveContainer></ChartPanel>
+   <ChartPanel title="每月营业额 · 韩元"><TrendLine data={points} metric="营业额"/></ChartPanel>
+   <ChartPanel title="每月客单价 · 韩元" expandable><TrendLine data={points} metric="客单价"/></ChartPanel>
+   <ChartPanel title="员工业绩" expandable><div className="stats-metric-switch" role="group" aria-label="员工业绩指标"><Button size="sm" variant={metric==="count"?"secondary":"ghost"} aria-pressed={metric==="count"} onClick={()=>setMetric("count")}>预约数</Button><Button size="sm" variant={metric==="revenue"?"secondary":"ghost"} aria-pressed={metric==="revenue"} onClick={()=>setMetric("revenue")}>营业额 · 韩元</Button></div><ResponsiveContainer width="100%" height={260}><LineChart data={byArtist}><CartesianGrid strokeDasharray="3 3" stroke={grid} vertical={false}/><XAxis dataKey="month" tick={axis} tickLine={false} axisLine={false}/><YAxis tick={axis} tickLine={false} axisLine={false} allowDecimals={false} width={55}/><Tooltip formatter={value=>number(Number(value))}/><Legend wrapperStyle={{fontSize:11}}/>{data.artists.map((artist,index)=><Line key={artist.id} dataKey={artist.id} name={artist.name} type="monotone" stroke={colors[index%colors.length]} strokeWidth={2} dot={{r:2}}/>)}</LineChart></ResponsiveContainer></ChartPanel>
   </div>}
  </>;
 }
