@@ -3,19 +3,20 @@
 import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
 import {useRouter,useSearchParams} from "next/navigation";
-import {ArrowLeft, Check, FileText, ImageIcon, Loader2, Paintbrush2, Plus, Save, Sparkles, Trash2} from "lucide-react";
+import {ArrowLeft, Check, FileText, Loader2, Paintbrush2, Plus, Save, Sparkles, Trash2} from "lucide-react";
 import {toast} from "sonner";
 import {adminApi} from "@/lib/admin-api";
 import {useAdminSession} from "@/components/admin/AdminShell";
 import {useUnsavedChanges} from "@/components/admin/UnsavedChanges";
 import {PageHeading, PanelState} from "@/components/admin/PageHeading";
-import {AdminSelect, ImageUpload, SettingSwitch, TextField} from "@/components/admin/FormControls";
+import {AdminSelect, TextField} from "@/components/admin/FormControls";
 import {Button} from "@/components/ui/button";
 import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogTitle} from "@/components/ui/dialog";
 import {EntryCard} from "@/components/admin/EntryCard";
 import ProjectEditor from "@/components/studio/ProjectEditor";
 import ContentPreview from "@/components/studio/ContentPreview";
 import EventCard from "@/components/studio/EventCard";
+import PosterEditor from "@/components/studio/PosterEditor";
 import {Label} from "@/components/ui/label";
 import {studioContentSchema, type StudioContent, type CatalogService} from "@/lib/studio/content";
 import "@uiw/react-md-editor/markdown-editor.css";
@@ -26,7 +27,7 @@ const empty=()=>({zh:"",en:"",kr:""});
 const views={
   services:{title:"项目与价格",description:"选择一个项目，统一管理项目信息、价格菜单和到店提醒。"},
   about:{title:"关于我们",description:"把工作室的故事写下来，点击预览查看顾客端的实际效果。"},
-  events:{title:"近期活动",description:"编辑活动图片与内容，并选择哪些活动展示给顾客。"},
+  events:{title:"近期活动",description:"上传活动海报，按原比例展示在网页和小程序中。"},
   contact:{title:"门店联系方式",description:"统一维护到店地址、联系渠道和收款信息。"},
 } as const;
 type View=keyof typeof views;
@@ -97,6 +98,7 @@ export default function ContentManager(){
 
   const save=async()=>{
     if(!content)return;
+    if(view==="events"&&eventId&&!(draftEvent?.image||content.events.find(event=>event.id===eventId)?.image)){toast.error("请先上传活动图片");return;}
     const parsed=studioContentSchema.safeParse({...content,services:draftProject?[...content.services,draftProject]:content.services,events:draftEvent?[...content.events,draftEvent]:content.events});
     if(!parsed.success){toast.error(parsed.error.issues.map(issue=>issue.message).join("；"));return;}
     setBusy(true);
@@ -129,6 +131,7 @@ export default function ContentManager(){
   const service=draftProject?.id===projectId?draftProject:content.services[index];
   const projectOverview=view==="services"&&!projectId,eventOverview=view==="events"&&!eventId;
   const overview=projectOverview||eventOverview;
+  const eventLabel=(item:StudioEvent)=>"活动图片 "+(content.events.findIndex(event=>event.id===item.id)+1||content.events.length+1);
   const eventIndex=content.events.findIndex(event=>event.id===eventId);
   const event=draftEvent?.id===eventId?draftEvent:content.events[eventIndex];
   if(view==="services"&&projectId&&draftProject?.id!==projectId&&!content.services.some(service=>service.id===projectId))
@@ -148,7 +151,7 @@ export default function ContentManager(){
     else update(value=>fn(value.services[index]));
   };
   const addEvent=()=>confirmNavigation(()=>{
-    const id=crypto.randomUUID();setDraftEvent({id,title:{zh:"新活动",en:"New event",kr:"새 소식"},body:empty(),image:"",enabled:false});
+    const id=crypto.randomUUID();setDraftEvent({id,title:empty(),body:empty(),image:"",enabled:true});
     router.push("/dashboard/content?view=events&event="+id+"&create=1");
   });
   const updateEvent=(fn:(value:StudioEvent)=>void)=>{
@@ -189,9 +192,8 @@ export default function ContentManager(){
   const previewContent={...content,services:draftProject?[...content.services,draftProject]:content.services,events:draftEvent?[...content.events,draftEvent]:content.events};
   const previewButton=<ContentPreview content={previewContent} view={view} lang={lang} service={chosen}/>;
   return <>
-    {!overview&&<PageHeading eyebrow="MAKE IT YOURS" title={view==="services"?service.names.zh:view==="events"?event.title.zh||"未命名活动":views[view].title} description={views[view].description}>
+    {!overview&&view!=="events"&&<PageHeading eyebrow="MAKE IT YOURS" title={view==="services"?service.names.zh:views[view].title} description={views[view].description}>
       {view==="services"&&<Button variant="outline" disabled={busy} onClick={()=>openProject()}><ArrowLeft size={14}/>项目列表</Button>}
-      {view==="events"&&<Button variant="outline" disabled={busy} onClick={()=>openEvent()}><ArrowLeft size={14}/>活动列表</Button>}
       {previewButton}
       {!overview&&<span className={"content-save-state "+(dirty?"is-dirty":"")}>{dirty?<span/>:<Check size={14}/>} {dirty?"有未保存的更改":"已保存"}</span>}
       {!overview&&<Button onClick={save} disabled={busy||!dirty}>{busy?<Loader2 className="animate-spin" size={15}/>:<Save size={15}/>}保存更改</Button>}
@@ -202,33 +204,28 @@ export default function ContentManager(){
     </div>:eventOverview?<>
     <div className="content-list-toolbar"><p>{content.events.length} 个活动 · {content.events.filter(event=>event.enabled).length} 个展示中</p>{previewButton}</div>
     <div className="event-entry-grid" role="region" aria-label="活动列表">
-      {content.events.map(event=><EventCard key={event.id} event={event} busy={busy} onEdit={()=>openEvent(event.id)} onDelete={()=>{setEventDeleteError("");setDeletingEvent(event);}}/>)}
-      <EntryCard title="新增活动" description="添加图片和介绍，准备下一份惊喜" icon={Plus} theme="pink" disabled={busy} add onClick={addEvent} footer="创建活动"/>
+      {content.events.map(event=><EventCard key={event.id} event={event} label={eventLabel(event)} busy={busy} onEdit={()=>openEvent(event.id)} onDelete={()=>{setEventDeleteError("");setDeletingEvent(event);}}/>)}
+      <EntryCard title="新增活动" description="上传活动海报，按原比例清晰展示" icon={Plus} theme="pink" disabled={busy} add onClick={addEvent} footer="创建活动"/>
     </div>
-    </>:<>
+    </>:view==="events"?<div className="poster-workspace">
+      <header className="poster-toolbar">
+        <div className="poster-toolbar-title"><Button type="button" variant="ghost" size="icon" aria-label="返回活动列表" disabled={busy} onClick={()=>openEvent()}><ArrowLeft size={18}/></Button><h1>{draftEvent?"新增活动":eventLabel(event)}</h1></div>
+        <div className="poster-toolbar-actions">{previewButton}<Button type="button" onClick={save} disabled={busy||!dirty}>{busy&&<Loader2 size={15} className="animate-spin"/>}保存</Button></div>
+      </header>
+      <PosterEditor image={event.image} enabled={event.enabled} busy={busy} isDraft={!!draftEvent} onFile={file=>{void upload(file,event.id);}} onEnabled={enabled=>updateEvent(value=>{value.enabled=enabled;})} onDelete={()=>{setEventDeleteError("");setDeletingEvent(event);}}/>
+    </div>:<>
     <div className="content-toolbar admin-panel">
       <div className="content-language"><Label htmlFor="content-language">编辑语言</Label><AdminSelect id="content-language" label="编辑语言" value={lang} onValueChange={value=>setLang(value as Language)} options={languages} disabled={busy}/></div>
       <p className="content-toolbar-hint">预览会显示当前更改，保存后顾客端生效。</p>
     </div>
     <div className={"content-editor-layout view-"+view}>
       <section className="admin-panel content-edit" data-color-mode="light">
-        <div className="content-panel-heading"><span className="content-panel-icon">{view==="events"?<ImageIcon size={19}/>:<FileText size={19}/>}</span><div><h2>{view==="about"?"关于我们 · Markdown":view==="services"?service.names.zh+" · 项目与价格":views[view].title}</h2><p>{view==="about"?"支持标题、列表、图片、链接与表格。":"清晰地整理信息，让顾客更容易找到需要的内容。"}</p></div></div>
+        <div className="content-panel-heading"><span className="content-panel-icon"><FileText size={19}/></span><div><h2>{view==="about"?"关于我们 · Markdown":view==="services"?service.names.zh+" · 项目与价格":views[view].title}</h2><p>{view==="about"?"支持标题、列表、图片、链接与表格。":"清晰地整理信息，让顾客更容易找到需要的内容。"}</p></div></div>
         <fieldset disabled={busy} className="content-edit-fields">
           {view==="about"&&<Editor value={content.about[lang]} onChange={text=>update(value=>{value.about[lang]=text||"";})} height={620} preview="edit" textareaProps={{"aria-label":"关于我们 Markdown 内容"}}/>}
           {view==="services"&&<ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/>}
           {view==="contact"&&<div className="content-stack">{contactFields.map(group=><section className="content-section" key={group.title}><div className="content-section-title"><h3>{group.title}</h3></div><p className="admin-field-help">{group.hint}</p><div className="admin-form-grid">{group.fields.map(([key,label])=><div key={key}>{field(label,content.contact[key as keyof typeof content.contact],text=>update(value=>{value.contact[key as keyof typeof value.contact]=text;}))}</div>)}</div></section>)}</div>}
-          {view==="events"&&<div className="content-stack">
-            <section className="content-section">
-              <div className="content-section-title"><h3>活动信息</h3></div>
-              {field("活动标题",event.title[lang],text=>updateEvent(value=>{value.title[lang]=text;}))}
-              <SettingSwitch label="显示活动" description="开启后会展示在网页和小程序的近期活动中。" checked={event.enabled} onCheckedChange={enabled=>updateEvent(value=>{value.enabled=enabled;})} disabled={busy}/>
-              {event.image&&<img src={event.image} alt={event.title[lang]||"活动图片"} className="event-edit-image"/>}
-              <ImageUpload label={event.image?"更换活动图片":"上传活动图片"} busy={busy} onFile={file=>upload(file,event.id)}/>
-              <Label>活动内容 · Markdown</Label>
-              <Editor value={event.body[lang]} onChange={text=>updateEvent(value=>{value.body[lang]=text||"";})} height={420} preview="edit" textareaProps={{"aria-label":"活动内容"}}/>
-            </section>
-            <section className="content-section"><div className="content-section-title"><h3>{draftEvent?"放弃创建":"删除活动"}</h3></div><p className="admin-field-help">{draftEvent?"这个活动尚未保存，可以直接放弃创建。":"删除后，网页和小程序将不再展示此活动。"}</p><Button type="button" variant="destructive" disabled={busy} onClick={()=>{setEventDeleteError("");setDeletingEvent(event);}}><Trash2 size={15}/>{draftEvent?"放弃创建":"删除活动"}</Button></section>
-          </div>}
+
         </fieldset>
       </section>
 
@@ -236,8 +233,8 @@ export default function ContentManager(){
     </>}
     <Dialog open={!!deletingEvent} onOpenChange={open=>{if(!open&&!busy)setDeletingEvent(undefined);}}>
       <DialogContent closeLabel="取消删除" onEscapeKeyDown={event=>{if(busy)event.preventDefault();}} onPointerDownOutside={event=>{if(busy)event.preventDefault();}}>
-        <DialogTitle>{draftEvent?.id===deletingEvent?.id?"放弃创建这个活动？":"删除「"+(deletingEvent?.title.zh||"未命名活动")+"」？"}</DialogTitle>
-        <DialogDescription>{draftEvent?.id===deletingEvent?.id?"尚未保存的活动图片和介绍将被丢弃。":"活动的图片和介绍将从网页和小程序中移除，未保存的更改也会丢弃。此操作无法撤销。"}</DialogDescription>
+        <DialogTitle>{draftEvent?.id===deletingEvent?.id?"放弃创建这个活动？":"删除「"+(deletingEvent?eventLabel(deletingEvent):"活动图片")+"」？"}</DialogTitle>
+        <DialogDescription>{draftEvent?.id===deletingEvent?.id?"尚未保存的活动图片将被丢弃。":"活动图片将从网页和小程序中移除，未保存的更改也会丢弃。此操作无法撤销。"}</DialogDescription>
         {eventDeleteError&&<p role="alert" className="text-sm text-destructive">{eventDeleteError}</p>}
         <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={()=>setDeletingEvent(undefined)}>取消</Button><Button type="button" variant="destructive" disabled={busy} onClick={deleteEvent}>{busy&&<Loader2 size={15} className="animate-spin"/>}{draftEvent?.id===deletingEvent?.id?"放弃创建":"确认删除"}</Button></DialogFooter>
       </DialogContent>
