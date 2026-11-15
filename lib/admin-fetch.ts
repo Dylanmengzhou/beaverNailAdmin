@@ -1,3 +1,5 @@
+import { handleExpiredAdminSession } from "./admin-session";
+
 export function adminFetch(input: RequestInfo | URL, init?: RequestInit) {
   const headers = new Headers(
     input instanceof Request ? input.headers : undefined,
@@ -14,5 +16,8 @@ export function adminFetch(input: RequestInfo | URL, init?: RequestInit) {
     url.pathname.startsWith("/api/")
   )
     headers.set("Authorization", `Bearer ${token}`);
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers }).then((response) => {
+    handleExpiredAdminSession(url, response.status);
+    return response;
+  });
 }
