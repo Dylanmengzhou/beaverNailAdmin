@@ -63,6 +63,22 @@ test("catalog project deletion preserves orders and removes unused configuration
    const disabled=fixture();disabled.services.find(service=>service.id===id)!.enabled=false;await save(disabled);
    const current=await(await call("GET")).json();assert.equal(current.services.find((service:{id:string})=>service.id===id).enabled,false);
   });
+  await t.test("activity deletion requires a manager, retains other content, and allows an empty activity list",async()=>{
+   const content=fixture();
+   content.events=["first","second"].map(key=>({id:prefix+key,title:{zh:key,en:key,kr:key},body:{zh:"活动介绍",en:"Event",kr:"소식"},image:"",enabled:true}));
+   await save(content);
+   const remove=(eventId:string,who=manager,extra="")=>fetch(base+"/api/studio/content?event="+eventId+extra,{method:"DELETE",headers:{Authorization:"Bearer "+who}});
+   assert.equal((await remove(content.events[0].id,"")).status,401);
+   assert.equal((await remove(content.events[0].id,staff)).status,403);
+   assert.equal((await remove(prefix+"missing")).status,404);
+   assert.equal((await remove(content.events[0].id,manager,"&service="+id)).status,400);
+   content.contact.phone="updated before deletion";await save(content);
+   const response=await remove(content.events[0].id);assert.equal(response.status,200);
+   const current=await response.json();assert.deepEqual(current.events,[content.events[1]]);assert.deepEqual(current.services,content.services);assert.deepEqual(current.contact,content.contact);
+   assert.equal((await remove(content.events[0].id)).status,404);
+   const last=await remove(content.events[1].id);assert.equal(last.status,200);assert.deepEqual((await last.json()).events,[]);
+   assert.equal((await db.reservation.count({where:{userId:prefix}})),1);
+  });
  }finally{
   await db.reservation.deleteMany({where:{userId:prefix}});
   await db.user.deleteMany({where:{id:prefix}});
