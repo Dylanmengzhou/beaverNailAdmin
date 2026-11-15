@@ -11,6 +11,7 @@ import {useUnsavedChanges} from "@/components/admin/UnsavedChanges";
 import {PageHeading, PanelState} from "@/components/admin/PageHeading";
 import {AdminSelect, ImageUpload, SettingSwitch, TextField} from "@/components/admin/FormControls";
 import {Button} from "@/components/ui/button";
+import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogTitle} from "@/components/ui/dialog";
 import {EntryCard} from "@/components/admin/EntryCard";
 import ProjectEditor from "@/components/studio/ProjectEditor";
 import {Label} from "@/components/ui/label";
@@ -51,6 +52,8 @@ export default function ContentManager(){
   const [busy,setBusy]=useState(false);
   const [saved,setSaved]=useState("");
   const [draftProject,setDraftProject]=useState<CatalogService>();
+  const [deleteOpen,setDeleteOpen]=useState(false);
+  const [deleteError,setDeleteError]=useState("");
   const [lang,setLang]=useState<Language>("zh");
   const [mobile,setMobile]=useState(true);
   const [preview,setPreview]=useState<unknown>();
@@ -161,6 +164,21 @@ export default function ContentManager(){
     if(draftProject?.id===projectId)setDraftProject(value=>{if(!value)return value;const next=structuredClone(value);fn(next);return next;});
     else update(value=>fn(value.services[index]));
   };
+  const deleteProject=async()=>{
+    setBusy(true);setDeleteError("");
+    try{
+      if(draftProject?.id===projectId){setDraftProject(undefined);}
+      else{
+        const value=await adminApi<StudioContent>("/api/studio/content?service="+encodeURIComponent(service.id),{method:"DELETE"});
+        setContent(value);setSaved(JSON.stringify(value));
+      }
+      setDeleteOpen(false);setFrameReady(false);
+      const next=new URLSearchParams(params.toString());next.delete("project");next.delete("create");
+      router.replace("/dashboard/content?"+next.toString());
+      toast.success(draftProject?"已放弃创建":"项目已删除");
+    }catch(error){setDeleteError(error instanceof Error?error.message:"删除失败，请重试");}
+    finally{setBusy(false);}
+  };
 
   return <>
     {!overview&&<PageHeading eyebrow="MAKE IT YOURS" title={view==="services"&&!overview?service.names.zh:views[view].title} description={views[view].description}>
@@ -181,7 +199,7 @@ export default function ContentManager(){
         <div className="content-panel-heading"><span className="content-panel-icon">{view==="events"?<ImageIcon size={19}/>:<FileText size={19}/>}</span><div><h2>{view==="about"?"关于我们 · Markdown":view==="services"?service.names.zh+" · 项目与价格":views[view].title}</h2><p>{view==="about"?"支持标题、列表、图片、链接与表格。":"清晰地整理信息，让顾客更容易找到需要的内容。"}</p></div></div>
         <fieldset disabled={busy} className="content-edit-fields">
           {view==="about"&&<Editor value={content.about[lang]} onChange={text=>update(value=>{value.about[lang]=text||"";})} height={620} preview="edit" textareaProps={{"aria-label":"关于我们 Markdown 内容"}}/>}
-          {view==="services"&&<ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject}/>}
+          {view==="services"&&<ProjectEditor service={service} lang={lang} busy={busy} onChange={updateProject} isDraft={draftProject?.id===projectId} onDelete={()=>{setDeleteError("");setDeleteOpen(true);}}/>}
           {view==="contact"&&<div className="content-stack">{contactFields.map(group=><section className="content-section" key={group.title}><div className="content-section-title"><h3>{group.title}</h3></div><p className="admin-field-help">{group.hint}</p><div className="admin-form-grid">{group.fields.map(([key,label])=><div key={key}>{field(label,content.contact[key as keyof typeof content.contact],text=>update(value=>{value.contact[key as keyof typeof value.contact]=text;}))}</div>)}</div></section>)}</div>}
           {view==="events"&&<div className="content-stack">
             <Button variant="outline" className="content-add-button" onClick={()=>update(value=>{value.events.push({id:crypto.randomUUID(),title:empty(),body:empty(),image:"",enabled:false});})}><Plus size={15}/>新增活动</Button>
@@ -209,5 +227,13 @@ export default function ContentManager(){
       </section>
     </div>
     </>}
+    <Dialog open={deleteOpen} onOpenChange={open=>{if(!busy)setDeleteOpen(open);}}>
+      <DialogContent closeLabel="取消删除" onEscapeKeyDown={event=>{if(busy)event.preventDefault();}} onPointerDownOutside={event=>{if(busy)event.preventDefault();}}>
+        <DialogTitle>{draftProject?"放弃创建这个项目？":"删除「"+service.names.zh+"」？"}</DialogTitle>
+        <DialogDescription>{draftProject?"尚未保存的项目信息、价格菜单和提醒事项都会丢弃。":"项目及其价格菜单、提醒事项将被删除，顾客端刷新后不再展示。此项目未保存的更改也会丢弃，此操作无法撤销。已有预约记录的项目无法删除，请改为停用。"}</DialogDescription>
+        {deleteError&&<p role="alert" className="text-sm text-destructive">{deleteError}</p>}
+        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={()=>setDeleteOpen(false)}>取消</Button><Button type="button" variant="destructive" disabled={busy} onClick={deleteProject}>{busy&&<Loader2 size={15} className="animate-spin"/>}{draftProject?"放弃创建":"确认删除"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   </>;
 }

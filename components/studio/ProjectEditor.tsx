@@ -10,8 +10,8 @@ import type {CatalogService} from "@/lib/studio/content";
 const empty=()=>({zh:"",en:"",kr:""});
 const themes=[{value:"pink",label:"粉色"},{value:"yellow",label:"黄色"},{value:"lilac",label:"紫色"},{value:"mint",label:"绿色"}];
 
-export default function ProjectEditor({service,lang,busy,onChange}:{
- service:CatalogService;lang:"zh"|"en"|"kr";busy:boolean;onChange:(update:(service:CatalogService)=>void)=>void;
+export default function ProjectEditor({service,lang,busy,onChange,onDelete,isDraft}:{
+ service:CatalogService;lang:"zh"|"en"|"kr";busy:boolean;onChange:(update:(service:CatalogService)=>void)=>void;onDelete:()=>void;isDraft:boolean;
 }){
  const field=(label:string,value:string,change:(text:string)=>void)=>
   <TextField label={label} value={value} disabled={busy} onChange={event=>change(event.target.value)}/>;
@@ -42,6 +42,11 @@ export default function ProjectEditor({service,lang,busy,onChange}:{
    <p className="admin-field-help">包含结算方式、附加税和到店提醒，显示在当前项目价格表下方。</p>
    {service.notes.map((note,noteIndex)=><div className="reminder-edit-row" key={noteIndex}><div className="admin-field"><Label htmlFor={"price-note-"+noteIndex}>提醒 {noteIndex+1}</Label><Textarea id={"price-note-"+noteIndex} disabled={busy} value={note[lang]} rows={2} onChange={event=>onChange(value=>{value.notes[noteIndex][lang]=event.target.value;})}/></div><Button type="button" variant="ghost" size="icon" disabled={busy} aria-label={"删除提醒 "+(noteIndex+1)} onClick={()=>onChange(value=>{value.notes.splice(noteIndex,1);})}><Trash2 size={14}/></Button></div>)}
    <Button type="button" variant="outline" disabled={busy} className="content-add-button" onClick={()=>onChange(value=>{value.notes.push(empty());})}><Plus size={14}/>增加提醒</Button>
+  </section>
+  <section className="content-section">
+   <div className="content-section-title"><h3>{isDraft?"放弃创建":"删除项目"}</h3></div>
+   <p className="admin-field-help">{isDraft?"这个项目尚未保存，可以直接放弃创建。":"删除项目及其价格菜单和提醒事项。有预约记录的项目请关闭上方的“开放顾客预约”，保留已有订单。"}</p>
+   <Button type="button" variant="destructive" disabled={busy} onClick={onDelete}><Trash2 size={15}/>{isDraft?"放弃创建":"删除整个项目"}</Button>
   </section>
  </div>;
 }
