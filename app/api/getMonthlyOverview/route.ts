@@ -1,10 +1,14 @@
-import { neon } from "@neondatabase/serverless";
+import {requireStaff} from "@/lib/studio/auth";
+import {apiError} from "@/lib/studio/http";
+import { sql } from "@/lib/sql";
 import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge"; // 👈 neon 要 Edge Runtime
+export const runtime = "nodejs";
 
 // 返回某个月的看板数据：按天聚合、按支付方式聚合、汇总（以及上月汇总用于环比）
 export async function GET(request: NextRequest) {
+ try{requireStaff(request,true);}catch(e){return apiError(e);}
+
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
 		throw new Error("DATABASE_URL is not defined");
@@ -30,7 +34,7 @@ export async function GET(request: NextRequest) {
 	const prevM = m === 1 ? 12 : m - 1;
 	const prevStart = `${prevY}-${pad(prevM)}-01`;
 
-	const sql = neon(databaseUrl);
+
 
 	try {
 		// 按天聚合（本月）
@@ -40,7 +44,7 @@ export async function GET(request: NextRequest) {
         COUNT(*) AS "count",
         COALESCE(SUM(CASE WHEN "currency" = 'KRW' THEN "finalPrice" ELSE 0 END), 0) AS "revenue"
       FROM "Reservation"
-      WHERE "date" >= ${monthStart} AND "date" < ${nextMonth}
+      WHERE "date" >= ${monthStart}::timestamp AND "date" < ${nextMonth}::timestamp
       GROUP BY TO_CHAR("date", 'YYYY-MM-DD')
       ORDER BY "day" ASC
     `;
@@ -51,7 +55,7 @@ export async function GET(request: NextRequest) {
         COALESCE("paymentMethod", 'unknown') AS "method",
         COUNT(*) AS "count"
       FROM "Reservation"
-      WHERE "date" >= ${monthStart} AND "date" < ${nextMonth}
+      WHERE "date" >= ${monthStart}::timestamp AND "date" < ${nextMonth}::timestamp
       GROUP BY "paymentMethod"
       ORDER BY "count" DESC
     `;
@@ -62,7 +66,7 @@ export async function GET(request: NextRequest) {
         "timeSlot" AS "slot",
         COUNT(*) AS "count"
       FROM "Reservation"
-      WHERE "date" >= ${monthStart} AND "date" < ${nextMonth}
+      WHERE "date" >= ${monthStart}::timestamp AND "date" < ${nextMonth}::timestamp
       GROUP BY "timeSlot"
     `;
 
@@ -73,7 +77,7 @@ export async function GET(request: NextRequest) {
         COUNT("finalPrice") FILTER (WHERE "currency" = 'KRW') AS "pricedCount",
         COALESCE(SUM(CASE WHEN "currency" = 'KRW' THEN "finalPrice" ELSE 0 END), 0) AS "revenue"
       FROM "Reservation"
-      WHERE "date" >= ${monthStart} AND "date" < ${nextMonth}
+      WHERE "date" >= ${monthStart}::timestamp AND "date" < ${nextMonth}::timestamp
     `;
 
 		// 上月汇总（用于环比）
@@ -82,7 +86,7 @@ export async function GET(request: NextRequest) {
         COUNT(*) AS "count",
         COALESCE(SUM(CASE WHEN "currency" = 'KRW' THEN "finalPrice" ELSE 0 END), 0) AS "revenue"
       FROM "Reservation"
-      WHERE "date" >= ${prevStart} AND "date" < ${monthStart}
+      WHERE "date" >= ${prevStart}::timestamp AND "date" < ${monthStart}::timestamp
     `;
 
 		const num = (v: unknown) => (v == null ? 0 : Number(v));

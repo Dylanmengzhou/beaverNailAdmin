@@ -1,197 +1,81 @@
-import { neon } from "@neondatabase/serverless";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import prisma from "@/lib/prisma";
+import { requireStaff } from "@/lib/studio/auth";
+import { apiError } from "@/lib/studio/http";
+import { getClosedWeekdays } from "@/lib/studio/booking-db";
+import { daySchema } from "@/lib/studio/validation";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+const rangeSchema = z
+  .object({
+    startDate: daySchema.optional(),
+    endDate: daySchema.optional(),
+  })
+  .refine(
+    (value) => Boolean(value.startDate) === Boolean(value.endDate),
+    "请选择完整日期范围",
+  )
+  .refine(
+    (value) =>
+      !value.startDate || !value.endDate || value.startDate <= value.endDate,
+    "结束日期不能早于开始日期",
+  );
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const loginUser = body.loginUser;
-  const { startDate, endDate } = body; // 添加日期范围参数
-  console.log("loginUser", loginUser);
-  console.log("📅 API接收到的日期范围:", startDate, "到", endDate);
-  if (startDate && endDate) {
-    console.log(
-      "🔍 将查询预约数据，包含边界日期:",
-      `${startDate} <= date <= ${endDate}`
-    );
-  }
-
-  const databaseUrl = process.env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
-
   try {
-    if (loginUser.username === "beavernail") {
-      console.log("loginUser.memberType", loginUser.memberType);
-
-      // 管理员查询逻辑
-      let reservations;
-      if (startDate && endDate) {
-        reservations = await sql`
-          SELECT
-            "User"."name" as "clientName",
-            "User"."email",
-            "User"."provider",
-            "Reservation"."id",
-            "Reservation"."date",
-            "Reservation"."timeSlot",
-            "Reservation"."isClick",
-            "NailArtist"."name" as "nailArtist",
-            "NailArtist"."id" as "nailArtistId"
-          FROM
-            "Reservation"
-          JOIN
-            "User"
-          ON
-            "Reservation"."userId" = "User"."id"
-          LEFT JOIN
-            "NailArtist"
-          ON
-            "Reservation"."nailArtistId" = "NailArtist"."id"
-          WHERE
-            "Reservation"."date" >= ${startDate} AND "Reservation"."date" <= ${endDate}
-          ORDER BY
-            "Reservation"."date" ASC,
-            "Reservation"."timeSlot" ASC
-        `;
-      } else {
-        reservations = await sql`
-          SELECT
-            "User"."name" as "clientName",
-            "User"."email",
-            "User"."provider",
-            "Reservation"."id",
-            "Reservation"."date",
-            "Reservation"."timeSlot",
-            "Reservation"."isClick",
-            "NailArtist"."name" as "nailArtist",
-            "NailArtist"."id" as "nailArtistId"
-          FROM
-            "Reservation"
-          JOIN
-            "User"
-          ON
-            "Reservation"."userId" = "User"."id"
-          LEFT JOIN
-            "NailArtist"
-          ON
-            "Reservation"."nailArtistId" = "NailArtist"."id"
-          ORDER BY
-            "Reservation"."date" ASC,
-            "Reservation"."timeSlot" ASC
-        `;
-      }
-
-      // 将结果转换成预期的格式，以兼容前端代码
-      const formattedReservations = reservations.map((reservation) => {
-        return {
-          name: reservation.clientName,
-          email: reservation.email,
-          provider: reservation.provider,
-          id: reservation.id,
-          date: reservation.date,
-          timeSlot: reservation.timeSlot,
-          isClick: reservation.isClick ?? false, // 添加点击状态字段
-          nailArtist: reservation.nailArtist,
-          nailArtistId: reservation.nailArtistId,
-        };
-      });
-
-      return NextResponse.json(
-        { success: true, message: formattedReservations },
-        { status: 200 }
-      );
-    }
-
-    // 员工查询逻辑
-    let reservations;
-    if (startDate && endDate) {
-      reservations = await sql`
-        SELECT
-          "User"."name" as "clientName",
-          "User"."email",
-          "User"."provider",
-          "Reservation"."id",
-          "Reservation"."date",
-          "Reservation"."timeSlot",
-          "Reservation"."isClick",
-          "NailArtist"."name" as "nailArtist",
-          "NailArtist"."id" as "nailArtistId"
-        FROM
-          "Reservation"
-        JOIN
-          "User"
-        ON
-          "Reservation"."userId" = "User"."id"
-        LEFT JOIN
-          "NailArtist"
-        ON
-          "Reservation"."nailArtistId" = "NailArtist"."id"
-        WHERE
-          "Reservation"."nailArtistId" = ${loginUser.nailArtistId}
-          AND "Reservation"."date" >= ${startDate} AND "Reservation"."date" <= ${endDate}
-        ORDER BY
-          "Reservation"."date" ASC,
-          "Reservation"."timeSlot" ASC
-      `;
-    } else {
-      reservations = await sql`
-        SELECT
-          "User"."name" as "clientName",
-          "User"."email",
-          "User"."provider",
-          "Reservation"."id",
-          "Reservation"."date",
-          "Reservation"."timeSlot",
-          "Reservation"."isClick",
-          "NailArtist"."name" as "nailArtist",
-          "NailArtist"."id" as "nailArtistId"
-        FROM
-          "Reservation"
-        JOIN
-          "User"
-        ON
-          "Reservation"."userId" = "User"."id"
-        LEFT JOIN
-          "NailArtist"
-        ON
-          "Reservation"."nailArtistId" = "NailArtist"."id"
-        WHERE
-          "Reservation"."nailArtistId" = ${loginUser.nailArtistId}
-        ORDER BY
-          "Reservation"."date" ASC,
-          "Reservation"."timeSlot" ASC
-      `;
-    }
-
-    // 将结果转换成预期的格式，以兼容前端代码
-    const formattedReservations = reservations.map((reservation) => {
-      return {
-        name: reservation.clientName,
-        email: reservation.email,
-        provider: reservation.provider,
-        id: reservation.id,
-        date: reservation.date,
-        timeSlot: reservation.timeSlot,
-        isClick: reservation.isClick ?? false, // 添加点击状态字段
-        nailArtist: reservation.nailArtist,
-        nailArtistId: reservation.nailArtistId,
-      };
-    });
-
+    const actor = requireStaff(request);
+    const { startDate, endDate } = rangeSchema.parse(await request.json());
+    // Calendar scope comes from the verified session, never the supplied loginUser.
+    const [closedWeekdays, reservations] = await Promise.all([
+      getClosedWeekdays(prisma),
+      prisma.reservation.findMany({
+        where: {
+          ...(actor.memberType === "staff" ? { nailArtistId: actor.id } : {}),
+          ...(startDate && endDate
+            ? {
+                date: {
+                  gte: new Date(startDate + "T00:00:00Z"),
+                  lte: new Date(endDate + "T00:00:00Z"),
+                },
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          date: true,
+          timeSlot: true,
+          serviceType: true,
+          durationMinutes: true,
+          isClick: true,
+          nailArtistId: true,
+          user: { select: { name: true, email: true, provider: true } },
+          nailArtist: { select: { name: true } },
+        },
+        orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
+      }),
+    ]);
     return NextResponse.json(
-      { success: true, message: formattedReservations },
-      { status: 200 }
+      {
+        success: true,
+        closedWeekdays,
+        message: reservations.map((booking) => ({
+          id: booking.id,
+          name: booking.user.name,
+          email: booking.user.email,
+          provider: booking.user.provider,
+          date: booking.date,
+          timeSlot: booking.timeSlot,
+          serviceType: booking.serviceType,
+          durationMinutes: booking.durationMinutes,
+          isClick: booking.isClick ?? false,
+          nailArtist: booking.nailArtist?.name ?? null,
+          nailArtistId: booking.nailArtistId,
+        })),
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "未知错误";
-    console.error("获取预约出错:", errorMessage);
-    return NextResponse.json(
-      { success: false, message: errorMessage },
-      { status: 500 }
-    );
+    return apiError(error);
   }
 }

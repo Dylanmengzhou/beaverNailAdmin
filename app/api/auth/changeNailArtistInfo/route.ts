@@ -1,6 +1,6 @@
 // 获取美甲师信息
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { sql } from "@/lib/sql";
 import jwt from "jsonwebtoken";
 export async function POST(request: NextRequest) {
   const requestData = await request.json();
@@ -10,14 +10,6 @@ export async function POST(request: NextRequest) {
 
   console.log("变更信息:", { id, name, account, isChangingPassword });
 
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    return NextResponse.json(
-      { error: "DATABASE_URL is not defined" },
-      { status: 500 }
-    );
-  }
-  const sql = neon(databaseUrl);
 
   // 检查用户是否存在
   try {

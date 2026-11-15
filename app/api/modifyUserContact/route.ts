@@ -1,13 +1,12 @@
 // give me a post api to modify user contact
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import {requireStaff} from "@/lib/studio/auth";
+import {apiError} from "@/lib/studio/http";
+import { sql } from "@/lib/sql";
 
 export async function POST(request: NextRequest) {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
+  try { requireStaff(request,true); } catch(e) {return apiError(e);}
+
   // first get the body of the request
   const body = await request.json();
   // console.log the body

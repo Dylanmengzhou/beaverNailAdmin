@@ -1,0 +1,6 @@
+ALTER TABLE "NailArtist" ADD COLUMN IF NOT EXISTS "serviceSettings" JSONB;
+ALTER TABLE "NailArtist" ADD COLUMN IF NOT EXISTS "commissionRateBps" INTEGER;
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "receivedAmount" INTEGER;
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "commissionAmount" INTEGER;
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "commissionRateBps" INTEGER;
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "settledAt" TIMESTAMP(3);

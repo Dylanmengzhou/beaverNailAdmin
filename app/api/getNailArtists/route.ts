@@ -1,27 +1,23 @@
-import {  NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-
-export async function GET() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
-
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { apiError } from "@/lib/studio/http";
+import { requireStaff } from "@/lib/studio/auth";
+export async function GET(request: Request) {
   try {
-    // 获取所有美甲师
-    const nailArtists = await sql`
-      SELECT id, name, role
-      FROM "NailArtist"
-      ORDER BY name ASC
-    `;
-
-    return NextResponse.json({ success: true, nailArtists }, { status: 200 });
-  } catch (error) {
-    console.error("获取美甲师失败:", error);
-    return NextResponse.json(
-      { success: false, message: "获取美甲师失败，请稍后再试" },
-      { status: 500 }
-    );
+    requireStaff(request);
+    const nailArtists = await prisma.nailArtist.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        services: true,
+        durationMinutes: true,
+      },
+      orderBy: { name: "asc" },
+    });
+    return NextResponse.json({ success: true, nailArtists });
+  } catch (e) {
+    return apiError(e);
   }
 }

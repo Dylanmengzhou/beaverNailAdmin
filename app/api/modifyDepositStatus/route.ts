@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { sql } from "@/lib/sql";
 export async function POST(request: NextRequest) {
   const { reservationId, depositPaid } = await request.json();
   console.log(reservationId, depositPaid);
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    return NextResponse.json(
-      { error: "Database URL is not set" },
-      { status: 500 }
-    );
-  }
-  const sql = neon(databaseUrl);
+
   const reservationResult = await sql`
     SELECT * FROM "Reservation" WHERE "id" = ${reservationId}
     `;

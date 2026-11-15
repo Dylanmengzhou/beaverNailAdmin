@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { sql } from "@/lib/sql";
 
 export async function GET(request: NextRequest) {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
+
 
   // 获取搜索参数
   const { searchParams } = new URL(request.url);

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import {Button} from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import {
   Popover,
@@ -29,6 +30,8 @@ type MonthPickerProps = {
   min?: string; // YYYY-MM
   max?: string; // YYYY-MM
   className?: string;
+  triggerContent?: React.ReactNode;
+  ariaLabel?: string;
 };
 
 export function MonthPicker({
@@ -37,6 +40,8 @@ export function MonthPicker({
   min,
   max,
   className,
+  triggerContent,
+  ariaLabel,
 }: MonthPickerProps) {
   const [open, setOpen] = React.useState(false);
   // 面板当前显示的年份
@@ -66,34 +71,41 @@ export function MonthPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
+        <Button variant="ghost"
           type="button"
-          className={`flex items-center gap-2 rounded-lg border border-pink-200 bg-white px-3 py-2 text-sm font-medium text-pink-700 shadow-sm transition-colors hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-300 ${
+          aria-label={ariaLabel}
+          className={`admin-month-trigger ${
             className ?? ""
           }`}
         >
-          <CalendarDays className="size-4 text-pink-400" />
-          {value || "选择月份"}
-        </button>
+          {triggerContent ?? (
+            <>
+              <CalendarDays className="size-4" />
+              {value || "选择月份"}
+            </>
+          )}
+        </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64">
+      <PopoverContent className="admin-month-popover w-64">
         {/* 年份切换 */}
         <div className="flex items-center justify-between mb-3">
-          <button
+          <Button variant="ghost"
             type="button"
+            aria-label="上一年"
             onClick={() => setViewYear((y) => y - 1)}
-            className="flex size-8 items-center justify-center rounded-lg text-pink-500 hover:bg-pink-100"
+            className="admin-month-year-arrow"
           >
             <ChevronLeft className="size-4" />
-          </button>
-          <span className="font-bold text-pink-600">{viewYear} 年</span>
-          <button
+          </Button>
+          <span className="admin-month-year">{viewYear} 年</span>
+          <Button variant="ghost"
             type="button"
+            aria-label="下一年"
             onClick={() => setViewYear((y) => y + 1)}
-            className="flex size-8 items-center justify-center rounded-lg text-pink-500 hover:bg-pink-100"
+            className="admin-month-year-arrow"
           >
             <ChevronRight className="size-4" />
-          </button>
+          </Button>
         </div>
 
         {/* 12 个月格子 */}
@@ -103,21 +115,21 @@ export function MonthPicker({
             const disabled = isDisabled(viewYear, month);
             const selected = selYear === viewYear && selMonth === month;
             return (
-              <button
+              <Button variant="ghost"
                 key={month}
                 type="button"
                 disabled={disabled}
                 onClick={() => handleSelect(month)}
                 className={`rounded-lg py-2 text-sm font-medium transition-colors ${
                   selected
-                    ? "bg-gradient-to-r from-pink-400 to-purple-400 text-white shadow-md"
+                    ? "admin-month-selected"
                     : disabled
-                    ? "cursor-not-allowed text-pink-200"
-                    : "text-pink-600 hover:bg-pink-100"
+                      ? "cursor-not-allowed opacity-40"
+                      : "admin-month-option"
                 }`}
               >
                 {label}
-              </button>
+              </Button>
             );
           })}
         </div>

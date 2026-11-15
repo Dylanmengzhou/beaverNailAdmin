@@ -1,15 +1,138 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String        @id @default(cuid())
+  name             String?
+  username         String?       @unique
+  password         String?
+  image            String?
+  membershipType   String        @default("free")
+  balance          Int?
+  securityQuestion String?
+  securityAnswer   String?
+  nickname         String?
+  gender           Gender?
+  birthday         DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  email            String?
+  emailVerified    DateTime?
+  provider         String
+  contactType      String?
+  altContact       String?
+  altContactType   String?
+  customerNote     String?
+  accounts         Account[]
+  reservations     Reservation[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Reservation {
+  id                String      @id @default(cuid())
+  date              DateTime
+  timeSlot          String
+  userId            String
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  nailArtistId      String?
+  note              String?
+  currentMemberShip String?
+  paymentMethod     String?     @default("cash")
+  uploadImage       String?
+  ocrResult         Boolean?
+  isClick           Boolean?    @default(false)
+  serviceType       String      @default("nails")
+  durationMinutes   Int         @default(120)
+  referenceImageIds String[]    @default([])
+  customerRequest   String?
+  receivedAmount    Int?
+  commissionAmount  Int?
+  commissionRateBps Int?
+  settledAt         DateTime?
+  finalPrice        Int?
+  currency          String?
+  depositPaid       Boolean?
+  nailArtist        NailArtist? @relation(fields: [nailArtistId], references: [id])
+  user              User        @relation(fields: [userId], references: [id])
+
+  @@unique([date, timeSlot, nailArtistId])
+}
+
+model NailArtist {
+  id              String        @id @default(cuid())
+  name            String        @unique
+  role            String        @default("L6")
+  account         String?
+  password        String?
+  membertype      String?
+  services        String[]      @default(["nails"])
+  durationMinutes Int           @default(120)
+  serviceSettings Json?
+  commissionRateBps Int?
+  schedule        Json?
+  active          Boolean       @default(true)
+  timeOff         TimeOff[]
+  reservations    Reservation[]
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+// Separate closures from real customer appointments. A null artist means the whole studio.
+model StudioSchedule {
+  id             Int   @id
+  closedWeekdays Int[] @default([1])
+}
+
+model TimeOff {
+  id           String      @id @default(cuid())
+  nailArtistId String?
+  startsAt     DateTime
+  endsAt       DateTime
+  reason       String?
+  nailArtist   NailArtist? @relation(fields: [nailArtistId], references: [id], onDelete: Cascade)
+
+  @@index([startsAt, endsAt])
+}
+
+model MediaAsset {
+  id        String   @id @default(cuid())
+  data      Bytes
+  mimeType  String
+  purpose   String
+  ownerId   String?
+  createdAt DateTime @default(now())
+}
+
+model HomeContent {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }

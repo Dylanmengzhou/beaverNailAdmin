@@ -1,15 +1,13 @@
-import { neon } from "@neondatabase/serverless";
+import prisma from "@/lib/prisma";
+import { reservationMessage, sendTelegram } from "@/lib/studio/notifications";
+import { sql } from "@/lib/sql";
 import { NextResponse } from "next/server";
 
-export const runtime = "edge"; // 👈 这里对的！
+export const runtime = "nodejs";
 
 // 获取单个预约
 export async function GET(req: Request) {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
+
 
   // 用 URL 解析 query
   const { searchParams } = new URL(req.url);
@@ -39,6 +37,8 @@ export async function GET(req: Request) {
 				na.account AS "nailArtistAccount",
 				r."note",
 				r."finalPrice",
+        r."receivedAmount",
+        r."commissionAmount",
 				r."currency",
 				r."depositPaid",
 				u."membershipType",
@@ -83,11 +83,7 @@ export async function GET(req: Request) {
 
 // 删除预约
 export async function POST(req: Request) {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
+
 
   // 同样用 URL 解析 query
   const { searchParams } = new URL(req.url);
@@ -130,6 +126,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const notificationRecord = await prisma.reservation.findUnique({ where: { id: reservationid }, include: { user: true, nailArtist: { select: { name: true } } } });
     await sql`
 			DELETE FROM "Reservation"
 			WHERE id = ${reservationid}
@@ -168,23 +165,7 @@ export async function POST(req: Request) {
     //     }),
     //   }
     // );
-    await fetch(process.env.TELEGRAM_API as string, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: process.env.TELEGRAM_CHAT_ID,
-        parse_mode: "HTML",
-        text: `<b>预约取消提醒 ❌（${cancelledBy}）</b>
-👤 顾客姓名: ${result[0].name}
-💻 联系类型: ${result[0]?.contactType}
-☎️ 联系方式: ${result[0]?.email}
-🗓 预约日期: ${new Date(result[0].date).toISOString().split("T")[0]}
-⌛️ 预约时间: ${result[0].timeSlot}
-🔗 登录类型: ${result[0]?.provider}
-👩‍🎤 美甲老师: ${result[0].nailArtistName || "未分配"}
-🆔 预约号码: ${result[0].reservationId}`,
-      }),
-    });
+    if (notificationRecord) await sendTelegram(reservationMessage(`预约取消提醒 ❌（${cancelledBy}）`, notificationRecord, notificationRecord.user, notificationRecord.nailArtist));
     return NextResponse.json(
       { success: true, message: "删除成功" },
       { status: 200 }

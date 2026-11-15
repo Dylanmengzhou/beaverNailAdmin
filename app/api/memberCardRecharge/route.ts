@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import {requireStaff} from "@/lib/studio/auth";
+import {apiError} from "@/lib/studio/http";
+import { sql } from "@/lib/sql";
 
 export async function POST(request: NextRequest) {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
+  try { requireStaff(request,true); } catch(e) {return apiError(e);}
+
 
   // 获取请求参数
   const { userId, amount, operatorId } = await request.json();
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
     // 更新用户余额并设置会员类型（处理balance为NULL的情况）
     const result = await sql`
       UPDATE "User"
-      SET "balance" = COALESCE("balance", 0) + ${amount},
+      SET "balance" = COALESCE("balance", 0) + ${amount}::integer,
           "membershipType" = 'vip'
       WHERE id = ${userId}
       RETURNING "balance", id, "membershipType"

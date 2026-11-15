@@ -1,16 +1,10 @@
-import { neon } from "@neondatabase/serverless";
+import { sql } from "@/lib/sql";
 import { NextResponse } from "next/server";
 
-export const runtime = "edge"; // 👈 neon 要 Edge Runtime
+export const runtime = "nodejs";
 
 export async function GET() {
-	const databaseUrl = process.env.DATABASE_URL;
 
-	if (!databaseUrl) {
-		throw new Error("DATABASE_URL is not defined");
-	}
-
-	const sql = neon(databaseUrl);
 
 	try {
 		const result = await sql`

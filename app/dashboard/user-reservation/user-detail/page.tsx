@@ -1,10 +1,26 @@
 "use client";
+import {useServiceCatalog} from "@/lib/use-service-catalog";
+import {DatePicker} from "@/components/admin/FormControls";
+import CustomerNoteCard from "@/components/studio/CustomerNoteCard";
+import Link from "next/link";
+import { seoulDay } from "@/lib/studio/booking";
+import { adminFetch } from "@/lib/admin-fetch";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeading, PanelState } from "@/components/admin/PageHeading";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  CalendarDays,
+  CreditCard,
+  Crown,
+  History,
+  Sparkles,
+  Flower2,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,20 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { BsWechat } from "react-icons/bs";
-import { PiPhoneFill } from "react-icons/pi";
-import { MdEmail } from "react-icons/md";
-import { RiKakaoTalkFill } from "react-icons/ri";
-import { BiLogoInstagramAlt } from "react-icons/bi";
-import {
-  FaQuestion,
-  FaUser,
-  FaCrown,
-  FaCalendarAlt,
-  FaCreditCard,
-} from "react-icons/fa";
-import { FaAngleLeft } from "react-icons/fa6";
-
 // 用户类型定义
 type User = {
   id: string;
@@ -48,6 +50,7 @@ type NailArtist = {
   id: string;
   name: string;
   role: string;
+  services: string[];
 };
 
 // 预约类型定义
@@ -66,6 +69,7 @@ type Reservation = {
 };
 
 export default function UserDetailPage() {
+  const catalog=useServiceCatalog();
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId");
@@ -82,6 +86,7 @@ export default function UserDetailPage() {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   // 预约相关状态
   const [nailArtists, setNailArtists] = useState<NailArtist[]>([]);
+  const [selectedService, setSelectedService] = useState("nails");
   const [selectedNailArtist, setSelectedNailArtist] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
@@ -116,7 +121,7 @@ export default function UserDetailPage() {
 
   // 更新URL参数中的tab
   const updateTabInUrl = (
-    newTab: "reservation" | "recharge" | "member" | "history"
+    newTab: "reservation" | "recharge" | "member" | "history",
   ) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", newTab);
@@ -124,14 +129,14 @@ export default function UserDetailPage() {
     window.history.replaceState(
       {},
       "",
-      `${window.location.pathname}?${params.toString()}`
+      `${window.location.pathname}?${params.toString()}`,
     );
   };
 
   // 处理tab切换
   const handleTabChange = (
     newTab: "reservation" | "recharge" | "member" | "history",
-    event?: React.MouseEvent
+    event?: React.MouseEvent,
   ) => {
     // 阻止默认的滚动行为
     event?.preventDefault();
@@ -147,14 +152,6 @@ export default function UserDetailPage() {
     requestAnimationFrame(() => {
       window.scrollTo(0, currentScrollY);
     });
-  };
-
-  const handleReservationClick = (reservationId: string) => {
-    // 在跳转时保存当前tab状态到URL参数中
-    const params = new URLSearchParams();
-    params.set("returnTab", activeTab);
-    params.set("returnUserId", userId || "");
-    router.push(`/reservation/${reservationId}?${params.toString()}`);
   };
 
   const getPaymentMethodName = (method: string): string => {
@@ -229,7 +226,9 @@ export default function UserDetailPage() {
 
       setIsLoadingUser(true);
       try {
-        const response = await fetch(`/api/getUserDetail?userId=${userId}`);
+        const response = await adminFetch(
+          `/api/getUserDetail?userId=${userId}`,
+        );
         if (!response.ok) {
           throw new Error("获取用户信息失败");
         }
@@ -266,7 +265,7 @@ export default function UserDetailPage() {
   useEffect(() => {
     const fetchNailArtists = async () => {
       try {
-        const response = await fetch("/api/getNailArtists");
+        const response = await adminFetch("/api/getNailArtists");
         if (!response.ok) {
           throw new Error("获取美甲师列表失败");
         }
@@ -289,51 +288,36 @@ export default function UserDetailPage() {
     }
   }, [currentUser]);
 
-  // 获取可用时间段
-  const fetchAvailableTimeSlots = async () => {
+  // Abort a previous availability request when service, staff or date changes.
+  useEffect(() => {
+    setSelectedTimeSlot("");
+    setAvailableTimeSlots([]);
     if (!selectedDate || !selectedNailArtist) {
-      setAvailableTimeSlots([]);
+      setIsLoadingTimeSlots(false);
       return;
     }
-
+    const controller = new AbortController();
     setIsLoadingTimeSlots(true);
-
-    try {
-      const response = await fetch(
-        `/api/getAvailableTimeSlots?date=${encodeURIComponent(
-          selectedDate
-        )}&nailArtistId=${encodeURIComponent(selectedNailArtist)}`
+    (async () => {
+      const response = await adminFetch(
+        `/api/getAvailableTimeSlots?date=${encodeURIComponent(selectedDate)}&nailArtistId=${encodeURIComponent(selectedNailArtist)}&serviceType=${selectedService}`,
+        { signal: controller.signal },
       );
-
-      if (!response.ok) {
-        throw new Error("获取可用时间段失败");
-      }
-
       const data = await response.json();
-      if (data.success) {
+      if (!response.ok || !data.success)
+        throw new Error(data.message || "可用时段加载失败");
+      if (!controller.signal.aborted)
         setAvailableTimeSlots(data.availableTimeSlots);
-        setSelectedTimeSlot("");
-      } else {
-        toast.error(data.message || "获取可用时间段失败", {
-          duration: 3000,
-          position: "top-center",
-        });
-      }
-    } catch (error) {
-      console.error("获取可用时间段失败:", error);
-      toast.error("获取可用时间段失败，请稍后再试", {
-        duration: 3000,
-        position: "top-center",
+    })()
+      .catch((error) => {
+        if (error.name !== "AbortError")
+          toast.error(error.message || "时段加载失败，请重试");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoadingTimeSlots(false);
       });
-    } finally {
-      setIsLoadingTimeSlots(false);
-    }
-  };
-
-  // 当选择日期或美甲师时获取可用时间段
-  useEffect(() => {
-    fetchAvailableTimeSlots();
-  }, [selectedDate, selectedNailArtist]);
+    return () => controller.abort();
+  }, [selectedDate, selectedNailArtist, selectedService]);
 
   // 创建预约
   const handleSubmitReservation = async () => {
@@ -346,7 +330,7 @@ export default function UserDetailPage() {
     }
 
     if (!selectedNailArtist) {
-      toast.error("请选择美甲师", {
+      toast.error("请选择服务员工", {
         duration: 3000,
         position: "top-center",
       });
@@ -372,7 +356,7 @@ export default function UserDetailPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/createReservation", {
+      const response = await adminFetch("/api/createReservation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -381,6 +365,7 @@ export default function UserDetailPage() {
           loginUser: currentUser?.username,
           userId: selectedUser.id,
           nailArtistId: selectedNailArtist,
+          serviceType: selectedService,
           date: selectedDate,
           timeSlot: selectedTimeSlot,
         }),
@@ -423,8 +408,8 @@ export default function UserDetailPage() {
       return;
     }
 
-    const amount = parseInt(rechargeAmount);
-    if (isNaN(amount) || amount <= 0) {
+    const amount = Number(rechargeAmount);
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
       toast.error("请输入有效的充值金额", {
         duration: 3000,
         position: "top-center",
@@ -435,8 +420,7 @@ export default function UserDetailPage() {
     setIsRecharging(true);
 
     try {
-      // 这里需要调用充值API（需要后端实现）
-      const response = await fetch("/api/memberCardRecharge", {
+      const response = await adminFetch("/api/memberCardRecharge", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -449,7 +433,6 @@ export default function UserDetailPage() {
       });
 
       const data = await response.json();
-      console.log("充值API响应:", data);
 
       if (response.ok && data.success) {
         toast.success(
@@ -457,7 +440,7 @@ export default function UserDetailPage() {
           {
             duration: 3000,
             position: "top-center",
-          }
+          },
         );
         setRechargeAmount("");
         // 只要充值就自动变成VIP，同时更新余额
@@ -468,7 +451,7 @@ export default function UserDetailPage() {
                 membershipType: "vip",
                 balance: data.data.balance,
               }
-            : null
+            : null,
         );
       } else {
         toast.error(data.message || "充值失败", {
@@ -478,24 +461,7 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error("充值失败:", error);
-      // 模拟充值成功（因为后端API可能还没实现）
-      const currentBalance = selectedUser?.balance || 0;
-      const newBalance = currentBalance + amount;
-      toast.success(`充值成功！余额：${newBalance} ₩, 用户已自动升级为VIP！`, {
-        duration: 3000,
-        position: "top-center",
-      });
-      setRechargeAmount("");
-      // 只要充值就自动变成VIP，同时更新余额
-      setSelectedUser((prev) =>
-        prev
-          ? {
-              ...prev,
-              membershipType: "vip",
-              balance: newBalance,
-            }
-          : null
-      );
+      toast.error("充值失败，请检查连接后重试。余额尚未更改。");
     } finally {
       setIsRecharging(false);
     }
@@ -514,8 +480,7 @@ export default function UserDetailPage() {
     setIsChangingMemberType(true);
 
     try {
-      // 这里需要调用更改会员类型的API（需要后端实现）
-      const response = await fetch("/api/changeMemberType", {
+      const response = await adminFetch("/api/changeMemberType", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -531,14 +496,14 @@ export default function UserDetailPage() {
 
       if (response.ok && data.success) {
         setSelectedUser((prev) =>
-          prev ? { ...prev, membershipType: newMemberType } : null
+          prev ? { ...prev, membershipType: newMemberType } : null,
         );
         toast.success(
           `已成功更改为${newMemberType === "vip" ? "VIP会员" : "普通用户"}！`,
           {
             duration: 3000,
             position: "top-center",
-          }
+          },
         );
       } else {
         toast.error(data.message || "更改会员类型失败", {
@@ -548,30 +513,20 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error("更改会员类型失败:", error);
-      // 模拟成功（因为后端API可能还没实现）
-      setSelectedUser((prev) =>
-        prev ? { ...prev, membershipType: newMemberType } : null
-      );
-      toast.success(
-        `已成功更改为${newMemberType === "vip" ? "VIP会员" : "普通用户"}！`,
-        {
-          duration: 3000,
-          position: "top-center",
-        }
-      );
+      toast.error("会员类型修改失败，请稍后重试");
     } finally {
       setIsChangingMemberType(false);
     }
   };
 
   // 获取用户历史预约
-  const fetchUserReservations = async () => {
+  const fetchUserReservations = useCallback(async () => {
     if (!selectedUser) return;
 
     setIsLoadingReservations(true);
     try {
-      const response = await fetch(
-        `/api/getUserReservations?userId=${selectedUser.id}`
+      const response = await adminFetch(
+        `/api/getUserReservations?userId=${selectedUser.id}`,
       );
 
       if (response.ok) {
@@ -595,7 +550,7 @@ export default function UserDetailPage() {
     } finally {
       setIsLoadingReservations(false);
     }
-  };
+  }, [selectedUser]);
 
   // 监听URL参数变化，更新activeTab
   useEffect(() => {
@@ -618,618 +573,370 @@ export default function UserDetailPage() {
     if (selectedUser && activeTab === "history") {
       fetchUserReservations();
     }
-  }, [selectedUser, activeTab]);
+  }, [selectedUser, activeTab, fetchUserReservations]);
 
   // 获取今天的日期
-  const today = new Date().toISOString().split("T")[0];
+  const today = seoulDay();
   const maxDate = new Date();
   maxDate.setDate(maxDate.getDate() + 365 * 5);
   const maxDateString = maxDate.toISOString().split("T")[0];
 
-  // 联系方式图标
-  const renderContactIcon = (contactType?: string) => {
-    switch (contactType?.toLowerCase()) {
-      case "wechat":
-        return <BsWechat className="h-4 w-4 text-green-600" />;
-      case "instagram":
-        return <BiLogoInstagramAlt className="h-4 w-4 text-purple-600" />;
-      case "kakao":
-        return <RiKakaoTalkFill className="h-4 w-4 text-yellow-700" />;
-      case "phone":
-        return <PiPhoneFill className="h-4 w-4 text-blue-600" />;
-      case "email":
-        return <MdEmail className="h-4 w-4 text-red-600" />;
-      default:
-        return <FaQuestion className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  if (isLoadingUser) {
+  if (isLoadingUser)
     return (
-      <div className="min-h-screen min-w-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-pink-400 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-          <p className="text-pink-600">加载用户信息中...</p>
-        </div>
-      </div>
+      <section className="admin-panel">
+        <PanelState loading title="正在加载顾客资料…" />
+      </section>
     );
-  }
-
-  if (!selectedUser) {
+  if (!selectedUser)
     return (
-      <div className="container mx-auto py-6 px-4 sm:px-6 max-w-6xl">
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">用户不存在</h3>
-          <Button onClick={() => router.push("/dashboard/user-reservation")}>
-            返回用户搜索
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto py-4 px-3 sm:py-6 sm:px-4 md:px-6 max-w-6xl">
-      {/* 页面标题和返回按钮 */}
-      <div className="mb-6 sm:mb-8">
-        <div className="flex items-center justify-between mb-4">
+      <section className="admin-panel">
+        <PanelState title="未找到这位顾客">
           <Button
-            variant="ghost"
-            className="shadow-none p-2 -ml-2 hover:bg-pink-50"
+            variant="outline"
             onClick={() => router.push("/dashboard/user-reservation")}
           >
-            <FaAngleLeft className="h-5 w-5" />
-            <span className="ml-1 hidden sm:inline">返回</span>
+            返回顾客搜索
           </Button>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-pink-600 flex-1 text-center px-2">
-            用户详情
-          </h1>
-          <div className="w-12 sm:w-16"></div> {/* 占位符保持布局平衡 */}
-        </div>
-
-        <p className="text-gray-500 text-center text-sm sm:text-base">
-          管理用户预约、充值和会员信息
-        </p>
-      </div>
-
-      {/* 用户信息卡片 */}
-      <div className="mb-6 sm:mb-8 relative">
-        {/* 背景阴影 */}
-        <div className="absolute -inset-2 bg-black/5 rounded-3xl blur-xl"></div>
-
-        <div className="relative">
-          {/* 主卡片 */}
-          <div className="bg-white border border-black/10 rounded-3xl shadow-2xl overflow-hidden">
-            {/* 顶部装饰条 */}
-            <div className="h-1 bg-black"></div>
-
-            {/* 用户核心信息区域 */}
-            <div className="relative bg-gradient-to-br from-neutral-50 to-stone-50">
-              <div className="relative px-6 sm:px-10 py-8 sm:py-12">
-                <div className="flex flex-col lg:flex-row items-center lg:items-start gap-8">
-                  {/* 用户头像和基本标识 */}
-                  <div className="flex flex-col items-center">
-                    {/* 头像 */}
-                    <div className="relative mb-6">
-                      <div className="absolute -inset-2 bg-black/10 rounded-full blur-md"></div>
-                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 bg-black rounded-full flex items-center justify-center shadow-2xl ring-4 ring-white">
-                        <FaUser className="h-10 w-10 sm:h-14 sm:w-14 text-white" />
-                      </div>
-                      {/* VIP徽章 */}
-                      {selectedUser.membershipType &&
-                        selectedUser.membershipType.toLowerCase() === "vip" && (
-                          <div className="absolute -top-2 -right-2">
-                            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-500 rounded-full flex items-center justify-center ring-4 ring-white shadow-xl">
-                              <FaCrown className="h-5 w-5 text-amber-900" />
-                            </div>
-                          </div>
-                        )}
-                    </div>
-
-                    {/* 会员状态和余额 */}
-                    <div className="flex flex-col items-center gap-4 w-full">
-                      {/* 会员状态徽章 */}
-                      {selectedUser.membershipType &&
-                      selectedUser.membershipType.toLowerCase() === "vip" ? (
-                        <div className="relative px-8 py-3 bg-gradient-to-r from-amber-200 via-amber-300 to-amber-400 rounded-2xl shadow-lg overflow-hidden animate-pulse">
-                          {/* 闪光效果 */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite] translate-x-[-100%]"></div>
-                          <div className="relative flex items-center gap-2">
-                            <FaCrown className="h-5 w-5 text-amber-700 drop-shadow-sm" />
-                            <span className="text-amber-700 font-bold text-lg drop-shadow-sm">
-                              VIP 会员
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="px-8 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl border-2 border-gray-200 shadow-md">
-                          <div className="flex items-center gap-2">
-                            <FaUser className="h-4 w-4 text-gray-600" />
-                            <span className="text-gray-700 font-semibold">
-                              普通用户
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 余额卡片 */}
-                      <div className="w-full max-w-xs">
-                        <div className="px-6 py-4 bg-black rounded-2xl shadow-xl border border-gray-800">
-                          <div className="text-center">
-                            <div className="flex items-center justify-center gap-2 mb-1">
-                              <FaCreditCard className="h-4 w-4 text-gray-300" />
-                              <span className="text-gray-300 text-sm font-medium">
-                                账户余额
-                              </span>
-                            </div>
-                            <div className="text-white text-2xl font-bold">
-                              {selectedUser.balance
-                                ? selectedUser.balance.toLocaleString()
-                                : 0}{" "}
-                              ₩
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 用户详细信息 */}
-                  <div className="flex-1 w-full lg:ml-8">
-                    {/* 用户名 */}
-                    <div className="text-center lg:text-left mb-8">
-                      <h2 className="text-3xl sm:text-4xl font-bold text-black mb-2">
-                        {selectedUser.name ||
-                          selectedUser.username ||
-                          "匿名用户"}
-                      </h2>
-                      <p className="text-gray-600 text-lg font-medium">
-                        用户档案
-                      </p>
-                    </div>
-
-                    {/* 联系信息网格 */}
-                    <div className="space-y-4">
-                      {/* 用户设置的联系方式 */}
-                      <div className="group">
-                        <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-lg">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-md">
-                              <div className="text-white text-lg">
-                                {renderContactIcon(selectedUser.contactType)}
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-bold text-gray-500 mb-1 uppercase tracking-wider">
-                                用户设置的联系方式
-                              </p>
-                              <p className="text-lg font-bold text-black break-all">
-                                {selectedUser.email || "未设置"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 真实联系方式 */}
-                      <div className="group">
-                        <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-lg">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-md">
-                              <div className="text-white text-lg">
-                                {renderContactIcon(selectedUser.altContactType)}
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-bold text-gray-500 mb-1 uppercase tracking-wider">
-                                真实联系方式
-                              </p>
-                              <p className="text-lg font-bold text-black break-all">
-                                {selectedUser.altContact || "未设置"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 注册平台 */}
-                      <div className="group">
-                        <div className="p-6 bg-white rounded-2xl border-2 border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-lg">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-md">
-                              <div className="text-white text-lg">
-                                {renderContactIcon(selectedUser.provider)}
-                              </div>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-bold text-gray-500 mb-1 uppercase tracking-wider">
-                                注册平台
-                              </p>
-                              <p className="text-lg font-bold text-black">
-                                {selectedUser.provider === "wechat"
-                                  ? "微信"
-                                  : selectedUser.provider === "instagram"
-                                  ? "Instagram"
-                                  : selectedUser.provider === "kakao"
-                                  ? "KakaoTalk"
-                                  : selectedUser.provider === "phone"
-                                  ? "手机号"
-                                  : selectedUser.provider === "email"
-                                  ? "邮箱"
-                                  : selectedUser.provider || "未知"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        </PanelState>
+      </section>
+    );
+  const isVip = selectedUser.membershipType === "vip";
+  return (
+    <div>
+      <PageHeading
+        eyebrow="A LITTLE CARE GOES A LONG WAY"
+        title={selectedUser.name || selectedUser.username || "顾客详情"}
+        description="记下每次的期待，也照顾每个小小的偏好。"
+      >
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/user-reservation")}
+        >
+          <ArrowLeft size={14} />
+          顾客列表
+        </Button>
+      </PageHeading>
+      <div className="customer-detail-grid">
+        <section className="admin-panel">
+          <div className="customer-action-tabs">
+            <div
+              className="admin-section-tabs"
+              role="group"
+              aria-label="顾客操作"
+            >
+              {(
+                [
+                  ["reservation", "预约", CalendarDays],
+                  ["history", "历史", History],
+                  ["recharge", "充值", CreditCard],
+                  ["member", "会员", Crown],
+                ] as const
+              ).map(([key, label, Icon]) => (
+                <button
+                  key={key}
+                  aria-pressed={activeTab === key}
+                  onClick={(event) => handleTabChange(key, event)}
+                >
+                  <Icon size={13} />
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* 功能标签页 */}
-      <div className="mb-8">
-        <div className="bg-gray-100 rounded-2xl p-2">
-          <nav className="flex gap-1 sm:gap-2">
-            <button
-              onClick={(e) => handleTabChange("reservation", e)}
-              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
-                activeTab === "reservation"
-                  ? "bg-black text-white shadow-lg"
-                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
-              }`}
-            >
-              <FaCalendarAlt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">创建预约</span>
-              <span className="sm:hidden">预约</span>
-            </button>
-            <button
-              onClick={(e) => handleTabChange("recharge", e)}
-              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
-                activeTab === "recharge"
-                  ? "bg-black text-white shadow-lg"
-                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
-              }`}
-            >
-              <FaCreditCard className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">充值管理</span>
-              <span className="sm:hidden">充值</span>
-            </button>
-            <button
-              onClick={(e) => handleTabChange("member", e)}
-              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
-                activeTab === "member"
-                  ? "bg-black text-white shadow-lg"
-                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
-              }`}
-            >
-              <FaCrown className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">会员管理</span>
-              <span className="sm:hidden">会员</span>
-            </button>
-            <button
-              onClick={(e) => handleTabChange("history", e)}
-              className={`py-2 sm:py-3 px-2 sm:px-6 rounded-xl font-semibold text-xs sm:text-sm flex-1 sm:flex-none flex items-center justify-center sm:justify-start transition-all duration-300 ${
-                activeTab === "history"
-                  ? "bg-black text-white shadow-lg"
-                  : "bg-transparent text-gray-600 hover:text-black hover:bg-white"
-              }`}
-            >
-              <FaCalendarAlt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">预约历史</span>
-              <span className="sm:hidden">历史</span>
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* 标签页内容 */}
-      <div id="tab-content">
-        {activeTab === "reservation" && (
-          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
-            <CardHeader className="pb-6 border-b border-gray-100">
-              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
-                  <FaCalendarAlt className="h-4 w-4 text-white" />
-                </div>
-                创建预约
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 sm:space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">选择美甲师</label>
-                  <Select
-                    value={selectedNailArtist}
-                    onValueChange={setSelectedNailArtist}
-                  >
-                    <SelectTrigger className="w-full h-10 sm:h-11">
-                      <SelectValue placeholder="选择美甲师" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {nailArtists.map((artist) => (
-                        <SelectItem key={artist.id} value={artist.id}>
-                          {artist.name} ({artist.role})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">选择日期</label>
-                  <Input
-                    type="date"
-                    min={today}
-                    max={maxDateString}
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full h-10 sm:h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">选择时间段</label>
-                  <Select
-                    value={selectedTimeSlot}
-                    onValueChange={setSelectedTimeSlot}
-                    disabled={
-                      isLoadingTimeSlots || availableTimeSlots.length === 0
-                    }
-                  >
-                    <SelectTrigger className="w-full h-10 sm:h-11">
-                      <SelectValue
-                        placeholder={
-                          isLoadingTimeSlots
-                            ? "加载中..."
-                            : availableTimeSlots.length === 0
-                            ? "请先选择日期和美甲师"
-                            : "选择时间段"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {availableTimeSlots.map((slot) => (
-                        <SelectItem key={slot} value={slot}>
-                          {slot}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={handleSubmitReservation}
-                    className="bg-black hover:bg-gray-800 text-white w-full sm:w-auto px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "创建中..." : "创建预约"}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === "recharge" && (
-          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
-            <CardHeader className="pb-6 border-b border-gray-100">
-              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
-                  <FaCreditCard className="h-4 w-4 text-white" />
-                </div>
-                充值管理
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 sm:space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    充值金额（韩币）
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="请输入充值金额"
-                    value={rechargeAmount}
-                    onChange={(e) => setRechargeAmount(e.target.value)}
-                    className="w-full h-10 sm:h-11 focus:ring-0 focus-visible:ring-0!"
-                  />
-                </div>
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={handleRecharge}
-                    className="bg-black hover:bg-gray-800 text-white w-full sm:w-auto px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300"
-                    disabled={isRecharging}
-                  >
-                    {isRecharging ? "充值中..." : "确认充值"}
-                  </Button>
-                </div>
-
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 sm:p-5">
-                  <div className="flex items-center">
-                    <FaCrown className="h-5 w-5 text-amber-600 mr-3" />
-                    <h3 className="text-base font-bold text-amber-800">
-                      VIP升级规则
-                    </h3>
+          <div className="customer-action-content">
+            {activeTab === "reservation" && (
+              <>
+                <div className="admin-panel-heading">
+                  <div>
+                    <h2>为顾客创建预约</h2>
+                    <p>选择服务与员工，再挑一个合适的时间。</p>
                   </div>
-                  <p className="mt-2 text-sm text-amber-700 leading-relaxed">
-                    任意金额充值即可自动升级为VIP会员，享受专属服务和优惠
-                  </p>
+                  <CalendarDays size={21} className="text-pink-300" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === "member" && (
-          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
-            <CardHeader className="pb-6 border-b border-gray-100">
-              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
-                  <FaCrown className="h-4 w-4 text-white" />
-                </div>
-                会员管理
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 sm:space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">选择会员类型</label>
-                  <Select
-                    value={selectedUser.membershipType || "free"}
-                    onValueChange={(value) => handleChangeMemberType(value)}
-                    disabled={isChangingMemberType}
-                  >
-                    <SelectTrigger className="w-full h-10 sm:h-11">
-                      <SelectValue placeholder="选择会员类型" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="vip">VIP会员</SelectItem>
-                      <SelectItem value="free">普通用户</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 sm:p-5">
-                  <div className="flex items-center">
-                    <FaCrown className="h-5 w-5 text-gray-700 mr-3" />
-                    <h3 className="text-base font-bold text-gray-800">
-                      会员类型管理
-                    </h3>
+                <div className="admin-field">
+                  <label>预约服务</label>
+                  <div className="service-choices">
+                    {(
+                      catalog.filter(s=>s.enabled).map(s=>[s.id,s.names.zh,s.id==="nails"?Flower2:Sparkles] as const)
+                    ).map(([key, label, Icon]) => (
+                      <button
+                        type="button"
+                        key={key}
+                        className="service-choice"
+                        aria-pressed={selectedService === key}
+                        onClick={() => {
+                          setSelectedService(key);
+                          setSelectedNailArtist("");
+                          setSelectedTimeSlot("");
+                        }}
+                      >
+                        <Icon size={19} />
+                        <strong>{label}</strong>
+                      </button>
+                    ))}
                   </div>
-                  <p className="mt-2 text-sm text-gray-700 leading-relaxed">
-                    可以随时更改用户的会员类型，VIP会员享受专属服务和优惠
-                  </p>
                 </div>
-
-                {isChangingMemberType && (
-                  <div className="text-center py-4">
-                    <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p className="text-sm text-gray-500 mt-2">更改中...</p>
+                <div className="admin-form-grid mt-6">
+                  <div className="admin-field">
+                    <label htmlFor="booking-staff">服务员工</label>
+                    <Select
+                      value={selectedNailArtist}
+                      onValueChange={setSelectedNailArtist}
+                    >
+                      <SelectTrigger id="booking-staff" className="w-full">
+                        <SelectValue placeholder="选择服务员工" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {nailArtists
+                          .filter((a) => a.services.includes(selectedService))
+                          .map((artist) => (
+                            <SelectItem key={artist.id} value={artist.id}>
+                              {artist.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="admin-field">
+                    <label htmlFor="booking-date">预约日期</label>
+                    <DatePicker id="booking-date" label="预约日期" min={today} max={maxDateString} value={selectedDate} onChange={setSelectedDate}/>
+                  </div>
+                </div>
+                <div className="admin-field-heading">
+                  可预约时段 <span className="admin-subtle">韩国时间</span>
+                </div>
+                {isLoadingTimeSlots ? (
+                  <p className="admin-subtle py-5">正在查询可预约时段…</p>
+                ) : !selectedDate || !selectedNailArtist ? (
+                  <div className="booking-slot-empty">
+                    先选择员工和日期，就可以查看空闲时间。
+                  </div>
+                ) : !availableTimeSlots.length ? (
+                  <div className="booking-slot-empty">
+                    这一天暂无可预约时段，换个日期试试。
+                  </div>
+                ) : (
+                  <div className="booking-slot-grid">
+                    {availableTimeSlots.map((slot) => (
+                      <button
+                        type="button"
+                        key={slot}
+                        aria-pressed={selectedTimeSlot === slot}
+                        onClick={() => setSelectedTimeSlot(slot)}
+                      >
+                        {slot}
+                      </button>
+                    ))}
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === "history" && (
-          <Card className="shadow-xl border-gray-200 bg-white rounded-2xl">
-            <CardHeader className="pb-6 border-b border-gray-100">
-              <CardTitle className="text-black text-xl sm:text-2xl font-bold flex items-center">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
-                  <FaCalendarAlt className="h-4 w-4 text-white" />
+                <div className="schedule-footer">
+                  <span className="admin-subtle">
+                    系统会自动检查排班、休息与预约冲突。
+                  </span>
+                  <Button
+                    disabled={
+                      isSubmitting ||
+                      isLoadingTimeSlots ||
+                      !selectedTimeSlot ||
+                      !selectedNailArtist ||
+                      !selectedDate
+                    }
+                    onClick={handleSubmitReservation}
+                  >
+                    {isSubmitting ? "正在创建…" : "确认创建预约"}
+                    <ArrowUpRight size={14} />
+                  </Button>
                 </div>
-                预约历史
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingReservations ? (
-                <div className="text-center py-8">
-                  <div className="w-8 h-8 border-4 border-pink-400 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-                  <p className="text-gray-500">加载预约历史中...</p>
+              </>
+            )}
+            {activeTab === "history" && (
+              <>
+                <div className="admin-panel-heading">
+                  <div>
+                    <h2>过往相见</h2>
+                    <p>查看这位顾客的预约记录与服务备注。</p>
+                  </div>
+                  <span className="admin-chip neutral">
+                    {userReservations.length} 次预约
+                  </span>
                 </div>
-              ) : userReservations.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">暂无预约记录</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {userReservations.map((reservation) => (
-                    <div
-                      key={reservation.reservationId}
-                      className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all duration-200"
-                      onClick={() =>
-                        handleReservationClick(reservation.reservationId)
-                      }
+                {isLoadingReservations ? (
+                  <PanelState loading title="正在读取预约记录…" />
+                ) : !userReservations.length ? (
+                  <PanelState title="新的故事，从下一次预约开始" />
+                ) : (
+                  userReservations.map((booking) => (
+                    <Link
+                      key={booking.reservationId}
+                      className="customer-history-item"
+                      href={`/reservation/${booking.reservationId}?returnTab=history&returnUserId=${selectedUser.id}`}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        {/* 左侧信息 */}
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-3">
-                            <div className="text-base font-semibold text-black">
-                              {new Date(reservation.date).toLocaleDateString()}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {reservation.timeSlot}
-                            </div>
-                            <div
-                              className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                reservation.depositPaid
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-yellow-100 text-yellow-700"
-                              }`}
-                            >
-                              {reservation.depositPaid
-                                ? "已付定金"
-                                : "未付定金"}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 text-sm text-gray-600">
-                            <span>
-                              美甲师：{reservation.nailArtistName || "未分配"}
-                            </span>
-                            {reservation.currentMemberShip === "vip" && (
-                              <span className="inline-flex items-center gap-1 text-amber-600">
-                                <FaCrown className="h-3 w-3" />
-                                VIP
-                              </span>
-                            )}
-                            {reservation.paymentMethod && (
-                              <span className="text-blue-600">
-                                {getPaymentMethodName(
-                                  reservation.paymentMethod
-                                )}
-                              </span>
-                            )}
-                          </div>
-
-                          {reservation.note && (
-                            <div className="text-sm text-gray-600">
-                              备注：{reservation.note}
-                            </div>
-                          )}
-
-                          {typeof reservation.balance !== "undefined" &&
-                            reservation.currentMemberShip?.toLowerCase() ===
-                              "vip" &&
-                            reservation.paymentMethod === "memberCard" && (
-                              <div className="text-xs text-blue-600">
-                                结算前余额：{reservation.balance} ₩
-                              </div>
-                            )}
-                        </div>
-
-                        {/* 右侧价格和ID */}
-                        <div className="flex flex-col items-end gap-1">
-                          {reservation.finalPrice ? (
-                            <div className="text-lg font-bold text-green-600">
-                              {reservation.finalPrice} ₩
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500">
-                              价格未设置
-                            </div>
-                          )}
-                          <div className="text-xs text-gray-400">
-                            #{reservation.reservationId.slice(-8)}
-                          </div>
-                        </div>
+                      <div className="customer-history-top">
+                        <strong>
+                          {booking.date.slice(0, 10)} · {booking.timeSlot}
+                        </strong>
+                        <ArrowUpRight size={14} />
                       </div>
-                    </div>
+                      <div className="customer-history-meta">
+                        <span>{booking.nailArtistName}</span>
+                        <span>
+                          {booking.finalPrice === null ||
+                          booking.finalPrice === undefined
+                            ? "未结算"
+                            : Number(booking.finalPrice).toLocaleString() +
+                              " ₩"}
+                        </span>
+                        <span>
+                          {getPaymentMethodName(booking.paymentMethod || "")}
+                        </span>
+                      </div>
+                      {booking.note && (
+                        <p className="admin-subtle mt-3 line-clamp-2">
+                          {booking.note}
+                        </p>
+                      )}
+                    </Link>
+                  ))
+                )}
+              </>
+            )}
+            {activeTab === "recharge" && currentUser?.memberType==="manager" && (
+              <>
+                <div className="admin-panel-heading">
+                  <div>
+                    <h2>会员卡充值</h2>
+                    <p>充值成功后，顾客将自动升级为 VIP 会员。</p>
+                  </div>
+                  <CreditCard size={20} className="text-purple-300" />
+                </div>
+                <div className="recharge-summary">
+                  <span>当前余额</span>
+                  <strong>
+                    {Number(selectedUser.balance || 0).toLocaleString()}{" "}
+                    <small>KRW</small>
+                  </strong>
+                </div>
+                <div className="admin-field">
+                  <label htmlFor="recharge-amount">充值金额（韩元）</label>
+                  <Input
+                    id="recharge-amount"
+                    inputMode="numeric"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={rechargeAmount}
+                    onChange={(e) => setRechargeAmount(e.target.value)}
+                    placeholder="输入实际充值金额"
+                    disabled={isRecharging || currentUser?.memberType!=="manager"}
+                  />
+                  <small>请在确认收到款项后录入本次充值金额。</small>
+                </div>
+                <div className="reservation-edit-actions">
+                  <Button
+                    disabled={isRecharging || !rechargeAmount}
+                    onClick={handleRecharge}
+                  >
+                    {isRecharging ? "正在充值…" : "确认充值"}
+                  </Button>
+                </div>
+              </>
+            )}
+            {activeTab === "member" && currentUser?.memberType==="manager" && (
+              <>
+                <div className="admin-panel-heading">
+                  <div>
+                    <h2>会员身份</h2>
+                    <p>根据顾客当前的会员情况调整身份。</p>
+                  </div>
+                  <Crown size={20} className="text-yellow-500" />
+                </div>
+                <div className="membership-current">
+                  <span
+                    className={`admin-chip ${isVip ? "yellow" : "neutral"}`}
+                  >
+                    {isVip ? "VIP 会员" : "普通顾客"}
+                  </span>
+                  <p>当前会员类型</p>
+                </div>
+                <div className="service-choices">
+                  {(["free", "vip"] as const).map((type) => (
+                    <button
+                      className="service-choice membership-choice"
+                      aria-pressed={
+                        (selectedUser.membershipType || "free") === type
+                      }
+                      disabled={
+                        isChangingMemberType ||
+                        (selectedUser.membershipType || "free") === type
+                      }
+                      key={type}
+                      onClick={() => void handleChangeMemberType(type)}
+                    >
+                      <Crown size={20} />
+                      <strong>
+                        {type === "vip" ? "设为 VIP 会员" : "设为普通顾客"}
+                      </strong>
+                    </button>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                {isChangingMemberType && (
+                  <p className="admin-subtle mt-4">正在保存会员身份…</p>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+        <aside className="customer-detail-sidebar">
+          <section className="admin-panel customer-profile-card">
+            <div className="customer-profile-top">
+              <span className="admin-avatar">
+                {(selectedUser.name || selectedUser.username || "?")
+                  .slice(0, 1)
+                  .toUpperCase()}
+              </span>
+              <div>
+                <h2>
+                  {selectedUser.name || selectedUser.username || "未填写姓名"}
+                </h2>
+                <span className={`admin-chip ${isVip ? "yellow" : "neutral"}`}>
+                  {isVip ? "VIP 会员" : "普通顾客"}
+                </span>
+              </div>
+            </div>
+            <div className="customer-profile-info">
+              <div className="customer-info-row">
+                <span>用户名</span>
+                <strong>{selectedUser.username || "—"}</strong>
+              </div>
+              <div className="customer-info-row">
+                <span>邮箱</span>
+                <strong>{selectedUser.email || "未填写"}</strong>
+              </div>
+              <div className="customer-info-row">
+                <span>
+                  {(
+                    {
+                      wechat: "微信",
+                      phone: "电话",
+                      kakao: "KakaoTalk",
+                      instagram: "Instagram",
+                      email: "邮箱",
+                    } as Record<string, string>
+                  )[selectedUser.altContactType || ""] || "其他联系"}
+                </span>
+                <strong>{selectedUser.altContact || "未填写"}</strong>
+              </div>
+            </div>
+          </section>
+          <section className="admin-panel customer-balance-card">
+            <p>会员卡余额</p>
+            <strong>
+              {Number(selectedUser.balance || 0).toLocaleString()}
+              <small>KRW</small>
+            </strong>
+          </section>
+          <CustomerNoteCard userId={selectedUser.id} />
+        </aside>
       </div>
     </div>
   );

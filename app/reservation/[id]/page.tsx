@@ -1,31 +1,19 @@
 "use client";
+import {Textarea} from "@/components/ui/textarea";
+import { adminFetch } from "@/lib/admin-fetch";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AiFillPicture } from "react-icons/ai";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { BsWechat } from "react-icons/bs";
-import { PiPhoneFill } from "react-icons/pi";
-import { RiHandCoinFill } from "react-icons/ri";
-import { FaFaceGrinSquintTears } from "react-icons/fa6";
-import { MdEmail } from "react-icons/md";
-import { PiNoteBlankFill } from "react-icons/pi";
-import { SiSharp } from "react-icons/si";
-import { BsCalendar2HeartFill } from "react-icons/bs";
-import { RiKakaoTalkFill } from "react-icons/ri";
-import { FaPiggyBank } from "react-icons/fa6";
-import { BiLogoInstagramAlt } from "react-icons/bi";
-import { LuPenOff } from "react-icons/lu";
-import { IoFingerPrintSharp } from "react-icons/io5";
-import { FaUserNurse } from "react-icons/fa";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,7 +22,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import axios from "axios";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Pencil,
+  CalendarDays,
+  Clock3,
+  Trash2,
+  Receipt,
+  UserRound,
+} from "lucide-react";
+import { PageHeading, PanelState } from "@/components/admin/PageHeading";
+import { toast } from "sonner";
+import ReservationExtras from "@/components/studio/ReservationExtras";
+import CustomerNoteCard from "@/components/studio/CustomerNoteCard";
+import axios from "@/lib/admin-axios";
 
 // 定义预约数据类型
 type ReservationData = {
@@ -50,6 +52,8 @@ type ReservationData = {
   nailArtist?: string;
   note?: string;
   price?: string;
+  receivedAmount?:number|null;
+  commissionAmount?:number|null;
   currency?: string;
   depositPaid: boolean | null;
   balance: number | null;
@@ -77,49 +81,27 @@ export default function ReservationDetail() {
   const [reservation, setReservation] = useState<ReservationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserData | null>(null);
   const [selectedContactType, setSelectedContactType] = useState<string | null>(
-    null
+    null,
   );
   const [contactValue, setContactValue] = useState<string>("");
-  const [isModified, setIsModified] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isNoteEditing, setIsNoteEditing] = useState(false);
   const [isNoteSaving, setIsNoteSaving] = useState(false);
   const [noteValue, setNoteValue] = useState<string>("");
-  const [isNoteModified, setIsNoteModified] = useState(false);
   const [isPriceEditing, setIsPriceEditing] = useState(false);
   const [isPriceSaving, setIsPriceSaving] = useState(false);
   const [priceValue, setPriceValue] = useState<string>("");
+  const [receivedValue,setReceivedValue]=useState("");
   const [currencyValue, setCurrencyValue] = useState<string>("KRW");
-  const [isPriceModified, setIsPriceModified] = useState(false);
   const [isDepositEditing, setIsDepositEditing] = useState(false);
   const [isDepositSaving, setIsDepositSaving] = useState(false);
   const [depositValue, setDepositValue] = useState<boolean>(false);
-  const [isDepositModified, setIsDepositModified] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-
-  // ESC键关闭图片弹窗
-  useEffect(() => {
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isImageModalOpen) {
-        setIsImageModalOpen(false);
-      }
-    };
-
-    if (isImageModalOpen) {
-      document.addEventListener("keydown", handleEsc);
-      // 阻止背景滚动
-      document.body.style.overflow = "hidden";
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleEsc);
-      document.body.style.overflow = "unset";
-    };
-  }, [isImageModalOpen]);
 
   // 智能返回函数
   const handleSmartBack = () => {
@@ -130,7 +112,7 @@ export default function ReservationDetail() {
       if (returnTab && returnUserId) {
         // 返回到用户详情页面的指定tab
         router.push(
-          `/dashboard/user-reservation/user-detail?userId=${returnUserId}&tab=${returnTab}`
+          `/dashboard/user-reservation/user-detail?userId=${returnUserId}&tab=${returnTab}`,
         );
         return;
       }
@@ -163,15 +145,15 @@ export default function ReservationDetail() {
       console.error("解析token失败:", error);
       router.push("/");
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const fetchReservation = async () => {
       setLoading(true);
 
       try {
-        const res = await fetch(
-          `/api/getSingleReservation?reservationid=${reservationId}`
+        const res = await adminFetch(
+          `/api/getSingleReservation?reservationid=${reservationId}`,
         );
         if (!res.ok) {
           throw new Error("Failed to fetch reservation");
@@ -192,8 +174,13 @@ export default function ReservationDetail() {
           contactType: data.contactType ?? "email",
           nailArtist: data.nailArtistName || "",
           note: data.note || "",
-          price: data.finalPrice ? String(data.finalPrice) : "",
+          price:
+            data.finalPrice !== null && data.finalPrice !== undefined
+              ? String(data.finalPrice)
+              : "",
           currency: data.currency || "KRW",
+          receivedAmount:data.receivedAmount,
+          commissionAmount:data.commissionAmount,
           depositPaid: data.depositPaid,
           balance: data.balance,
           currentMemberShip: data.currentMemberShip,
@@ -219,22 +206,6 @@ export default function ReservationDetail() {
         } else {
           setPaymentMethod("cash");
         }
-
-        // 简化通知逻辑，直接显示通知
-        if (data.depositPaid === false && data.currentMemberShip === "free") {
-          toast.error("该预约尚未支付定金", {
-            position: "top-center",
-            duration: 5000,
-          });
-        } else if (
-          data.depositPaid === null &&
-          data.currentMemberShip === "free"
-        ) {
-          toast.warning("该预约定金状态未设置", {
-            position: "top-center",
-            duration: 5000,
-          });
-        }
       } catch (error) {
         console.error(error);
         setReservation(null);
@@ -247,21 +218,6 @@ export default function ReservationDetail() {
       fetchReservation();
     }
   }, [reservationId]);
-
-  // 获取provider对应的标签样式
-  const getProviderBadgeStyle = (provider: string): string => {
-    switch (provider) {
-      case "wechat":
-        return "bg-green-500 text-white";
-      case "google":
-        return "bg-blue-500 text-white";
-      case "kakao":
-        return "bg-yellow-500 text-white";
-      case "credentials":
-      default:
-        return "bg-pink-500 text-white";
-    }
-  };
 
   // 格式化价格，每隔1000添加逗号
   const formatPrice = (price: string | number | undefined): string => {
@@ -304,52 +260,6 @@ export default function ReservationDetail() {
     }
   };
 
-  const getContactType = (contactType: string): React.ReactNode => {
-    switch (contactType) {
-      case "wechat":
-        return (
-          <BsWechat
-            className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center text-white p-2"
-            size={30}
-          />
-        );
-      case "phone":
-        return (
-          <PiPhoneFill
-            className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white p-2"
-            size={30}
-          />
-        );
-      case "email":
-        return (
-          <MdEmail
-            className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white p-2"
-            size={30}
-          />
-        );
-      case "Instagram":
-        return (
-          <BiLogoInstagramAlt
-            className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white p-2"
-            size={30}
-          />
-        );
-      case "kakao":
-        return (
-          <RiKakaoTalkFill
-            className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-white p-2"
-            size={30}
-          />
-        );
-      default:
-        return (
-          <LuPenOff
-            className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white p-2"
-            size={30}
-          />
-        );
-    }
-  };
   const handleModifyContact = async () => {
     try {
       if (!currentUser) {
@@ -363,7 +273,7 @@ export default function ReservationDetail() {
 
       setIsSaving(true);
 
-      const result = await fetch(`/api/modifyUserContact`, {
+      const result = await adminFetch(`/api/modifyUserContact`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -412,8 +322,6 @@ export default function ReservationDetail() {
 
       setIsNoteSaving(true);
 
-      // 这里只进行前端处理，后端API由用户自己实现
-      // 这里模拟API请求的过程
       const result = await axios.post(`/api/modifyReservationNote`, {
         reservationid: reservationId,
         note: noteValue,
@@ -462,10 +370,11 @@ export default function ReservationDetail() {
         return;
       }
       try {
-        // 这里是最终价格的接口
+        setIsPriceSaving(true);
         const result = await axios.post(`/api/modifyReservationPrice`, {
           reservationid: reservationId,
           price: priceValue,
+          receivedAmount:receivedValue===""?undefined:Number(receivedValue),
           currency: currencyValue,
           paymentMethod: paymentMethod,
         });
@@ -556,6 +465,7 @@ export default function ReservationDetail() {
   };
 
   const handleDelete = async () => {
+    setCancelling(true);
     try {
       if (!currentUser) {
         toast.error("您需要登录才能取消预约", {
@@ -566,7 +476,7 @@ export default function ReservationDetail() {
         return;
       }
 
-      const res = await fetch(
+      const res = await adminFetch(
         `/api/getSingleReservation?reservationid=${reservationId}`,
         {
           method: "POST",
@@ -578,7 +488,7 @@ export default function ReservationDetail() {
             operatorAccount: currentUser.account,
             operatorType: currentUser.memberType,
           }),
-        }
+        },
       );
 
       if (!res.ok) {
@@ -609,867 +519,545 @@ export default function ReservationDetail() {
         position: "top-center",
         duration: 3000,
       });
-      // reload the page
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
+    } finally {
+      setCancelling(false);
     }
   };
 
-  // 如果没有用户信息，显示加载中
-  if (!currentUser) {
+  if (loading || !currentUser)
     return (
-      <div className="container mx-auto p-4 max-w-2xl md:min-w-screen bg-gradient-to-b from-pink-50 to-purple-50 min-h-screen flex justify-center items-center">
-        <div className="animate-pulse flex space-x-2">
-          <div className="h-3 w-3 bg-pink-400 rounded-full"></div>
-          <div className="h-3 w-3 bg-pink-500 rounded-full"></div>
-          <div className="h-3 w-3 bg-pink-600 rounded-full"></div>
-        </div>
-      </div>
+      <section className="admin-panel">
+        <PanelState loading title="正在加载这次预约…" />
+      </section>
     );
-  }
-
+  if (!reservation)
+    return (
+      <section className="admin-panel">
+        <PanelState title="预约暂时无法读取">
+          <p>请检查预约是否存在，或重新加载。</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            重新加载
+          </Button>
+          <Button variant="ghost" onClick={handleSmartBack}>
+            返回上一页
+          </Button>
+        </PanelState>
+      </section>
+    );
+  const contactLabels: Record<string, string> = {
+    wechat: "微信",
+    phone: "电话",
+    email: "邮箱",
+    instagram: "Instagram",
+    kakao: "KakaoTalk",
+  };
+  const startPriceEdit = () => {
+    setPriceValue(reservation.price || "");
+    setReceivedValue(reservation.receivedAmount==null?"":String(reservation.receivedAmount));
+    setCurrencyValue(reservation.currency || "KRW");
+    setPaymentMethod(
+      reservation.paymentMethod ||
+        (reservation.currentMemberShip === "vip" ? "memberCard" : "cash"),
+    );
+    setIsPriceEditing(true);
+  };
+  const depositLabel =
+    reservation.depositPaid === true
+      ? "定金已支付"
+      : reservation.depositPaid === false
+        ? "定金未支付"
+        : "定金待确认";
   return (
-    <div className="container mx-auto px-4 pb-10 max-w-2xl md:min-w-screen min-h-svh bg-gradient-to-b from-pink-50 to-purple-50 flex flex-col items-center justify-center">
-      {loading ? (
-        <div className="flex justify-center items-center h-40">
-          <div className="animate-pulse flex space-x-2">
-            <div className="h-3 w-3 bg-pink-400 rounded-full"></div>
-            <div className="h-3 w-3 bg-pink-500 rounded-full"></div>
-            <div className="h-3 w-3 bg-pink-600 rounded-full"></div>
-          </div>
-        </div>
-      ) : reservation ? (
-        <div className="pt-10 md:w-8/12">
-          <h1 className=" text-3xl pb-10 font-bold  text-center text-pink-600 tracking-wide">
-            预约详情
-          </h1>
-          <div className="bg-white shadow-lg rounded-2xl p-6 border-4 border-pink-200 backdrop-blur-sm">
-            <div className="grid grid-cols-1 gap-6">
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2">
-                  <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">
-                      <SiSharp />
-                    </span>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">预约ID</h2>
-                </div>
-                <p className="text-gray-600 pl-11 font-mono text-sm">
-                  {reservation.reservationId}
-                </p>
+    <div>
+      <PageHeading
+        eyebrow="MADE JUST FOR THIS MOMENT"
+        title="预约详情"
+        description={`预约编号 · ${reservation.reservationId}`}
+      >
+        <Button variant="outline" onClick={handleSmartBack}>
+          <ArrowLeft size={14} />
+          返回
+        </Button>
+      </PageHeading>
+      <div className="reservation-detail-grid">
+        <div className="reservation-detail-column">
+          <section className="admin-panel reservation-summary">
+            <div className="reservation-date-block">
+              <span>{Number(reservation.date.slice(5, 7))} 月</span>
+              <strong>{Number(reservation.date.slice(8, 10))}</strong>
+              <span>
+                {new Date(reservation.date + "T00:00:00Z").toLocaleDateString(
+                  "zh-CN",
+                  { weekday: "long", timeZone: "UTC" },
+                )}
+              </span>
+            </div>
+            <div>
+              <span
+                className={`admin-chip ${reservation.depositPaid ? "green" : "yellow"}`}
+              >
+                {depositLabel}
+              </span>
+              <h2>{reservation.user || "未填写姓名"} 的美丽时刻</h2>
+              <p className="flex items-center gap-2">
+                <CalendarDays size={12} />
+                {reservation.date}
+                <Clock3 size={12} />
+                {reservation.timeslot} · 韩国时间
+              </p>
+              <p className="mt-2">
+                服务员工 · {reservation.nailArtist || "未分配"}
+              </p>
+            </div>
+          </section>
+          <ReservationExtras
+            reservationId={reservationId}
+            showCustomerNote={false}
+          />
+          <section className="admin-panel reservation-edit-card">
+            <div className="admin-panel-heading">
+              <div>
+                <h2>本次预约备注</h2>
+                <p>记录这次的款式、沟通结果与特别安排。</p>
               </div>
-
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">
-                      <FaFaceGrinSquintTears />
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-gray-700">
-                      客户姓名
-                    </h2>
-                    {reservation.currentMemberShip?.toLowerCase() === "vip" ? (
-                      <p className="font-medium bg-amber-400 text-white px-2 rounded-full flex items-center justify-center">
-                        vip
-                      </p>
-                    ) : (
-                      <p className="font-medium bg-gray-500 text-white px-2 rounded-full flex items-center justify-center">
-                        非会员
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <p
-                  className="text-blue-600 pl-11 font-medium cursor-pointer"
+              {!isNoteEditing && (
+                <button
+                  className="admin-soft-action"
                   onClick={() => {
-                    router.push(
-                      `/dashboard/user-reservation/user-detail?userId=${reservation.userId}`
-                    );
+                    setNoteValue(reservation.note || "");
+                    setIsNoteEditing(true);
                   }}
                 >
-                  {reservation.user ? reservation.user : "未设置"}
-                </p>
-              </div>
-
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-3">
-                  <div className="w-8 h-8 rounded-full bg-orange-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">
-                      <BsCalendar2HeartFill />
-                    </span>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">预约时间</h2>
-                </div>
-                <div className="pl-11">
-                  <span className="bg-gradient-to-r from-pink-200 to-pink-100 px-3 py-1.5 rounded-full mr-3 inline-block font-medium shadow-sm">
-                    {reservation.date}
-                  </span>
-                  <span className="bg-gradient-to-r from-blue-200 to-blue-100 px-3 py-1.5 rounded-full inline-block font-medium shadow-sm">
-                    {reservation.timeslot}
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2 gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
-                    <div className="">
-                      {getContactType(reservation.contactType)}
-                    </div>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">联系方式</h2>
-                </div>
-                <p className="text-gray-600 pl-11 font-medium">
-                  {reservation.contact ? reservation.contact : "未设置"}
-                </p>
-              </div>
-              {reservation?.currentMemberShip === "vip" &&
-                reservation?.balance && (
-                  <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                    <div className="flex items-center mb-2 gap-3">
-                      <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
-                        <div className="text-white">
-                          <FaPiggyBank />
-                        </div>
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-700">余额</h2>
-                    </div>
-                    <p className="text-gray-600 pl-11 font-medium">
-                      {`${formatPrice(reservation.balance)} ${
-                        reservation.currency || "KRW"
-                      }`}
-                    </p>
-                  </div>
-                )}
-              {reservation?.price &&
-                reservation?.currentMemberShip === "vip" && (
-                  <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                    <div className="flex items-center mb-2 gap-3">
-                      <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
-                        <div className="text-white">
-                          <FaPiggyBank />
-                        </div>
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-700">
-                        本次结余后余额
-                      </h2>
-                    </div>
-                    <p className="text-gray-600 pl-11 font-medium">
-                      {reservation.balance &&
-                      reservation.paymentMethod === "memberCard"
-                        ? `${formatPrice(
-                            reservation.balance - Number(reservation.price)
-                          )} ${reservation.currency || "KRW"}`
-                        : `${formatPrice(reservation?.balance || 0)} ${
-                            reservation.currency || "KRW"
-                          }`}
-                    </p>
-                  </div>
-                )}
-              {!reservation?.price && !isPriceEditing && (
-                <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                  <div className="flex items-center mb-2 gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#C4A94D] flex items-center justify-center ">
-                      <div className="text-white">
-                        <RiHandCoinFill />
-                      </div>
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-700">
-                      最终交易价格
-                    </h2>
-                  </div>
-                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
-                    <span className="text-gray-400">暂未设置价格</span>
-                    <Button
-                      variant="outline"
-                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
-                      onClick={() => {
-                        setIsPriceEditing(true);
-                        setPriceValue("");
-                        setCurrencyValue("KRW");
-                        // 根据会员类型设置默认支付方法
-                        if (reservation?.currentMemberShip === "vip") {
-                          setPaymentMethod("memberCard");
-                        } else {
-                          setPaymentMethod("cash");
-                        }
-                      }}
-                    >
-                      添加价格
-                    </Button>
-                  </div>
-                </div>
+                  <Pencil size={12} />
+                  编辑
+                </button>
               )}
-              {(reservation?.price || isPriceEditing) && (
-                <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                  <div className="flex items-center mb-2 gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#C4A94D] flex items-center justify-center ">
-                      <div className="text-white">
-                        <RiHandCoinFill />
-                      </div>
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-700">
-                      最终交易价格
-                    </h2>
-                  </div>
-                  {!isPriceEditing ? (
-                    <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
-                      <div className="flex flex-col">
-                        <span>
-                          {reservation?.price
-                            ? `${formatPrice(reservation.price)} ${
-                                reservation.currency || "KRW"
-                              }`
-                            : "未设置"}
-                        </span>
-                        {reservation?.price && (
-                          <span className="text-sm text-gray-500 mt-1">
-                            支付方式:{" "}
-                            {getPaymentMethodName(
-                              reservation?.paymentMethod ||
-                                (reservation?.currentMemberShip === "vip"
-                                  ? "memberCard"
-                                  : "cash")
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
-                        onClick={() => {
-                          setIsPriceEditing(true);
-                          setPriceValue(reservation?.price || "");
-                          setCurrencyValue(reservation?.currency || "KRW");
-                          // 重置支付方法
-                          if (reservation?.paymentMethod) {
-                            setPaymentMethod(reservation.paymentMethod);
-                          } else if (reservation?.currentMemberShip === "vip") {
-                            setPaymentMethod("memberCard");
-                          } else {
-                            setPaymentMethod("cash");
-                          }
-                        }}
-                      >
-                        修改
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="text-gray-600 font-medium">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Input
-                          placeholder="请输入整数金额"
-                          value={priceValue}
-                          type="number"
-                          min="0"
-                          step="1"
-                          onChange={(e) => {
-                            // 确保只能输入整数
-                            const value = e.target.value.replace(/\D/g, "");
-                            setPriceValue(value);
-                            setIsPriceModified(
-                              value !== (reservation?.price || "") ||
-                                currencyValue !==
-                                  (reservation?.currency || "KRW") ||
-                                paymentMethod !==
-                                  (reservation?.paymentMethod ||
-                                    (reservation?.currentMemberShip === "vip"
-                                      ? "memberCard"
-                                      : "cash"))
-                            );
-                          }}
-                          className="flex-1"
-                        />
-                        <Select
-                          value={currencyValue}
-                          onValueChange={(value) => {
-                            setCurrencyValue(value);
-                            setIsPriceModified(
-                              priceValue !== (reservation?.price || "") ||
-                                value !== (reservation?.currency || "KRW") ||
-                                paymentMethod !==
-                                  (reservation?.paymentMethod ||
-                                    (reservation?.currentMemberShip === "vip"
-                                      ? "memberCard"
-                                      : "cash"))
-                            );
-                          }}
-                        >
-                          <SelectTrigger className="w-24">
-                            <SelectValue placeholder="KRW" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border-none">
-                            <SelectItem value="KRW">KRW</SelectItem>
-                            <SelectItem value="CNY">CNY</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                            <SelectItem value="JPY">JPY</SelectItem>
-                            <SelectItem value="EUR">EUR</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm text-gray-600 w-20">
-                          支付方式:
-                        </span>
-                        <Select
-                          value={paymentMethod}
-                          onValueChange={(value) => {
-                            setPaymentMethod(value);
-                            setIsPriceModified(
-                              priceValue !== (reservation?.price || "") ||
-                                currencyValue !==
-                                  (reservation?.currency || "KRW") ||
-                                value !==
-                                  (reservation?.paymentMethod ||
-                                    (reservation?.currentMemberShip === "vip"
-                                      ? "memberCard"
-                                      : "cash"))
-                            );
-                          }}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="选择支付方式" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border-none">
-                            <SelectItem value="cash">现金支付</SelectItem>
-                            <SelectItem value="memberCard">会员卡</SelectItem>
-                            <SelectItem value="card">银行卡</SelectItem>
-                            <SelectItem value="wechat">微信支付</SelectItem>
-                            <SelectItem value="alipay">支付宝</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
-                          onClick={() => {
-                            if (isPriceModified) {
-                              handlePriceModify();
-                            } else {
-                              setIsPriceEditing(false);
-                            }
-                          }}
-                          disabled={!isPriceModified || isPriceSaving}
-                        >
-                          {isPriceSaving ? (
-                            <div className="flex items-center">
-                              <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                              <span>处理中...</span>
-                            </div>
-                          ) : (
-                            "确认"
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
-                          onClick={() => {
-                            setIsPriceEditing(false);
-                            setPriceValue(reservation?.price || "");
-                            setCurrencyValue(reservation?.currency || "KRW");
-                            setIsPriceModified(false);
-                            // 重置支付方法
-                            if (reservation?.paymentMethod) {
-                              setPaymentMethod(reservation.paymentMethod);
-                            } else if (
-                              reservation?.currentMemberShip === "vip"
-                            ) {
-                              setPaymentMethod("memberCard");
-                            } else {
-                              setPaymentMethod("cash");
-                            }
-                          }}
-                          disabled={isPriceSaving}
-                        >
-                          取消
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+            </div>
+            {isNoteEditing ? (
+              <>
+                <Textarea
+                  className="admin-textarea"
+                  maxLength={2000}
+                  aria-label="本次预约备注"
+                  value={noteValue}
+                  onChange={(e) => setNoteValue(e.target.value)}
+                  disabled={isNoteSaving}
+                />
+                <div className="reservation-edit-actions">
+                  <Button
+                    variant="ghost"
+                    disabled={isNoteSaving}
+                    onClick={() => setIsNoteEditing(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    disabled={
+                      isNoteSaving || noteValue === (reservation.note || "")
+                    }
+                    onClick={handleNoteModify}
+                  >
+                    {isNoteSaving ? "保存中…" : "保存备注"}
+                  </Button>
                 </div>
-              )}
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2 gap-3">
-                  <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
-                    <div className="text-white">
-                      <FaPiggyBank />
-                    </div>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">
-                    是否支付定金
-                  </h2>
-                </div>
-                {!isDepositEditing ? (
-                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
-                    <span>
-                      {reservation?.depositPaid === null ? (
-                        "未设置"
-                      ) : reservation.depositPaid ? (
-                        <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                          已付定金
-                        </span>
-                      ) : (
-                        <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                          未付定金
-                        </span>
-                      )}
-                    </span>
-                    <Button
-                      variant="outline"
-                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
-                      onClick={() => {
-                        setIsDepositEditing(true);
-                        // 如果之前是未设置状态，不要设置默认值
-                        if (reservation?.depositPaid !== null) {
-                          setDepositValue(reservation?.depositPaid === true);
-                        }
-                      }}
-                    >
-                      修改
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-gray-600 font-medium">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Select
-                        value={
-                          reservation?.depositPaid === null
-                            ? undefined
-                            : depositValue
-                            ? "true"
-                            : "false"
-                        }
-                        onValueChange={(value) => {
-                          const newValue = value === "true";
-                          setDepositValue(newValue);
-                          // 如果原始状态是null或者新值与原值不同，就应该允许确认
-                          setIsDepositModified(
-                            reservation?.depositPaid === null ||
-                              newValue !== (reservation?.depositPaid === true)
-                          );
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue
-                            placeholder={
-                              reservation?.depositPaid === null
-                                ? "请选择定金状态"
-                                : "选择定金状态"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border-none">
-                          <SelectItem value="true">已付定金</SelectItem>
-                          <SelectItem value="false">未付定金</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
-                        onClick={() => {
-                          if (isDepositModified) {
-                            handleDepositModify();
-                          } else {
-                            setIsDepositEditing(false);
-                          }
-                        }}
-                        disabled={!isDepositModified || isDepositSaving}
-                      >
-                        {isDepositSaving ? (
-                          <div className="flex items-center">
-                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                            <span>处理中...</span>
-                          </div>
-                        ) : (
-                          "确认"
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
-                        onClick={() => {
-                          setIsDepositEditing(false);
-                          // 如果原先存在值，则恢复原值，否则保持空值
-                          if (reservation?.depositPaid !== null) {
-                            setDepositValue(reservation?.depositPaid === true);
-                          }
-                          setIsDepositModified(false);
-                        }}
-                        disabled={isDepositSaving}
-                      >
-                        取消
-                      </Button>
-                    </div>
-                  </div>
-                )}
+              </>
+            ) : (
+              <div className="reservation-note-content">
+                {reservation.note || "这次还没有额外的服务备注。"}
               </div>
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2 gap-3">
-                  <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center ">
-                    <div className="text-white">
-                      <AiFillPicture />
-                    </div>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">转账截图</h2>
-                </div>
-                {reservation.uploadImage ? (
-                  <div className="flex items-center justify-start ml-11">
-                    <Image
-                      src={reservation.uploadImage}
-                      alt="转账截图"
-                      width={100}
-                      height={100}
-                      className="cursor-pointer hover:opacity-80 transition-opacity duration-200 rounded-lg shadow-md"
-                      onClick={() => setIsImageModalOpen(true)}
+            )}
+          </section>
+          <section className="admin-panel reservation-edit-card">
+            <div className="admin-panel-heading">
+              <div>
+                <h2>本次结算</h2>
+                <p>记录最终金额、币种与实际支付方式。</p>
+              </div>
+              {!isPriceEditing && (
+                <button className="admin-soft-action" onClick={startPriceEdit}>
+                  <Pencil size={12} />
+                  {reservation.price ? "修改" : "录入"}
+                </button>
+              )}
+            </div>
+            {isPriceEditing ? (
+              <>
+                <div className="admin-form-grid">
+                  <div className="admin-field">
+                    <label htmlFor="settlement-price">最终金额</label>
+                    <Input
+                      id="settlement-price"
+                      type="number"
+                      min="0"
+                      step="1"
+                      inputMode="numeric"
+                      placeholder="输入整数金额"
+                      value={priceValue}
+                      onChange={(e) => setPriceValue(e.target.value)}
+                      disabled={isPriceSaving}
                     />
                   </div>
-                ) : (
-                  <div className="text-white font-medium ml-11 rounded-full bg-orange-400 w-fit px-2 ">
-                    未上传
-                  </div>
-                )}
-              </div>
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2 gap-3">
-                  <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center ">
-                    <div className="text-white">
-                      <PiNoteBlankFill />
-                    </div>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">备忘录</h2>
-                </div>
-                {!isNoteEditing ? (
-                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
-                    <span>{reservation.note || "未设置"}</span>
-                    <Button
-                      variant="outline"
-                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
-                      onClick={() => {
-                        setIsNoteEditing(true);
-                        setNoteValue(reservation.note || "");
-                      }}
+                  <div className="admin-field"><label htmlFor="settlement-received">实收金额 · 含定金</label><Input id="settlement-received" type="number" min="0" step="1" value={receivedValue} placeholder="填写实际收到的金额" disabled={isPriceSaving} onChange={e=>setReceivedValue(e.target.value)}/><small>提成按实收金额及员工比例计算。留空表示尚未确认实收。</small></div>
+                  <div className="admin-field">
+                    <label htmlFor="settlement-currency">结算币种</label>
+                    <Select
+                      value={currencyValue}
+                      onValueChange={setCurrencyValue}
+                      disabled={isPriceSaving}
                     >
-                      修改
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-gray-600 font-medium">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Input
-                        placeholder={
-                          reservation.note ? reservation.note : "请输入备忘录"
-                        }
-                        value={noteValue}
-                        onChange={(e) => {
-                          setNoteValue(e.target.value);
-                          setIsNoteModified(
-                            e.target.value !== (reservation.note || "")
-                          );
-                        }}
-                      />
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
-                        onClick={() => {
-                          if (isNoteModified) {
-                            handleNoteModify();
-                          } else {
-                            setIsNoteEditing(false);
-                          }
-                        }}
-                        disabled={!isNoteModified || isNoteSaving}
+                      <SelectTrigger
+                        id="settlement-currency"
+                        className="w-full"
                       >
-                        {isNoteSaving ? (
-                          <div className="flex items-center">
-                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                            <span>处理中...</span>
-                          </div>
-                        ) : (
-                          "确认"
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
-                        onClick={() => {
-                          setIsNoteEditing(false);
-                          setNoteValue(reservation.note || "");
-                          setIsNoteModified(false);
-                        }}
-                        disabled={isNoteSaving}
-                      >
-                        取消
-                      </Button>
-                    </div>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["KRW", "CNY", "USD", "JPY", "EUR"].map((currency) => (
+                          <SelectItem key={currency} value={currency}>
+                            {currency}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
-              </div>
-              <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                <div className="flex items-center mb-2 gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-400 flex items-center justify-center ">
-                    <div className="">
-                      {getContactType(reservation.altContactType)}
-                    </div>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">
-                    实际联系方式
-                  </h2>
                 </div>
-                {!isEditing ? (
-                  <div className="text-gray-600 font-medium flex items-center justify-between pl-11">
-                    {reservation.altContact &&
-                    (reservation.altContact.startsWith("http://") ||
-                      reservation.altContact.startsWith("https://") ||
-                      reservation.altContact.includes("www.")) ? (
-                      <a
-                        href={
-                          reservation.altContact.startsWith("http")
-                            ? reservation.altContact
-                            : `https://${reservation.altContact}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-700 font-medium underline"
-                      >
-                        主页链接
-                      </a>
-                    ) : (
-                      <span>{reservation.altContact || "未设置"}</span>
-                    )}
-                    <Button
-                      variant="outline"
-                      className="ml-2 text-sm px-3 py-1 h-8 rounded-full bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200"
-                      onClick={() => {
-                        setIsEditing(true);
-                        setSelectedContactType(
-                          reservation.altContactType || null
-                        );
-                      }}
-                    >
-                      修改
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-gray-600 font-medium">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Select
-                        defaultValue={reservation.altContactType}
-                        onValueChange={(value) => {
-                          setSelectedContactType(value);
-                          setIsModified(
-                            value !== reservation.altContactType ||
-                              contactValue !== reservation.altContact
-                          );
-                        }}
-                      >
-                        <SelectTrigger className="rounded-full border-none shadow-none outline-none ring-0 focus:ring-0 focus:ring-offset-0 focus:outline-none focus:border-none hover:border-none active:border-none">
-                          <SelectValue placeholder="选择" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border-none">
-                          <SelectItem value="wechat">
-                            <BsWechat size={30} className="text-green-500" />
-                          </SelectItem>
-                          <SelectItem value="phone">
-                            <PiPhoneFill
-                              size={30}
-                              className="text-purple-500"
-                            />
-                          </SelectItem>
-                          <SelectItem value="Instagram">
-                            <BiLogoInstagramAlt
-                              size={30}
-                              className="text-pink-500"
-                            />
-                          </SelectItem>
-                          <SelectItem value="kakao">
-                            <RiKakaoTalkFill
-                              size={30}
-                              className="text-yellow-500"
-                            />
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder={
-                          reservation.altContact
-                            ? reservation.altContact
-                            : "未设置"
-                        }
-                        value={contactValue}
-                        onChange={(e) => {
-                          setContactValue(e.target.value);
-                          setIsModified(
-                            (selectedContactType !== null &&
-                              selectedContactType !==
-                                reservation.altContactType) ||
-                              (e.target.value !== "" &&
-                                e.target.value !== reservation.altContact)
-                          );
-                        }}
-                      />
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        className="bg-gradient-to-r from-green-500 to-teal-600 active:from-green-600 active:to-teal-700 text-white px-4 py-1 rounded-full shadow-md transition-all duration-300 transform active:scale-105 text-sm h-8"
-                        onClick={() => {
-                          if (isModified) {
-                            handleModifyContact();
-                          } else {
-                            setIsEditing(false);
-                          }
-                        }}
-                        disabled={!isModified || isSaving}
-                      >
-                        {isSaving ? (
-                          <div className="flex items-center">
-                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                            <span>处理中...</span>
-                          </div>
-                        ) : (
-                          "确认"
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="px-4 py-1 h-8 rounded-full text-gray-500 border-gray-300 hover:bg-gray-100 text-sm"
-                        onClick={() => {
-                          setIsEditing(false);
-                          setSelectedContactType(
-                            reservation.altContactType || null
-                          );
-                          setContactValue(reservation.altContact || "");
-                          setIsModified(false);
-                        }}
-                        disabled={isSaving}
-                      >
-                        取消
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {reservation.nailArtist && (
-                <div className="border-b-2 border-dotted border-pink-200 pb-4">
-                  <div className="flex items-center mb-2">
-                    <div className="w-8 h-8 rounded-full bg-pink-400 flex items-center justify-center mr-3">
-                      <FaUserNurse className="text-white" size={16} />
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-700">美甲师</h2>
-                  </div>
-                  <p className="text-gray-600 pl-11 font-medium">
-                    {reservation.nailArtist || "未分配"}
-                  </p>
-                </div>
-              )}
-              <div className="pb-2">
-                <div className="flex items-center mb-2">
-                  <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center mr-3">
-                    <span className="text-white text-sm">
-                      <IoFingerPrintSharp />
-                    </span>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-700">登录方式</h2>
-                </div>
-                <div className="mt-1 pl-11">
-                  <span
-                    className={`px-4 py-1.5 rounded-full text-sm ${getProviderBadgeStyle(
-                      reservation.provider
-                    )} shadow-sm font-medium`}
+                <div className="admin-field mt-5">
+                  <label htmlFor="settlement-payment">支付方式</label>
+                  <Select
+                    value={paymentMethod}
+                    onValueChange={setPaymentMethod}
+                    disabled={isPriceSaving}
                   >
-                    {getProviderName(reservation.provider)}
-                  </span>
+                    <SelectTrigger id="settlement-payment" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["cash", "memberCard", "card", "wechat", "alipay"].map(
+                        (method) => (
+                          <SelectItem key={method} value={method}>
+                            {getPaymentMethodName(method)}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
+                <div className="reservation-edit-actions">
+                  <Button
+                    variant="ghost"
+                    disabled={isPriceSaving}
+                    onClick={() => setIsPriceEditing(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    disabled={
+                      isPriceSaving ||
+                      !/^\d+$/.test(priceValue) ||
+                      (priceValue === (reservation.price || "") &&
+                        currencyValue === (reservation.currency || "KRW") &&
+                        paymentMethod === reservation.paymentMethod)
+                    }
+                    onClick={handlePriceModify}
+                  >
+                    {isPriceSaving ? "保存中…" : "保存结算"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="reservation-price">
+                  {reservation.price
+                    ? formatPrice(reservation.price)
+                    : "尚未结算"}{" "}
+                  {reservation.price && (
+                    <small>{reservation.currency || "KRW"}</small>
+                  )}
+                </div>
+                <div className="customer-info-row mt-3">
+                  <span>支付方式</span>
+                  <strong>
+                    {reservation.price
+                      ? getPaymentMethodName(reservation.paymentMethod || "")
+                      : "待结算后记录"}
+                  </strong>
+                </div>
+                {reservation.currentMemberShip === "vip" && (
+                  <div className="customer-info-row">
+                    <span>
+                      {reservation.price &&
+                      reservation.paymentMethod === "memberCard"
+                        ? "本次结算后余额"
+                        : "本次结算前余额"}
+                    </span>
+                    <strong>
+                      {formatPrice(
+                        Math.max(
+                          0,
+                          Number(reservation.balance || 0) -
+                            (reservation.price &&
+                            reservation.paymentMethod === "memberCard"
+                              ? Number(reservation.price)
+                              : 0),
+                        ),
+                      )}{" "}
+                      KRW
+                    </strong>
+                  </div>
+                )}
+              </>
+            )}
+            <div className="admin-form-divider" />
+            <div className="admin-panel-heading">
+              <h2>定金状态</h2>
+              {!isDepositEditing && (
+                <button
+                  className="admin-soft-action"
+                  onClick={() => {
+                    setDepositValue(reservation.depositPaid === true);
+                    setIsDepositEditing(true);
+                  }}
+                >
+                  <Pencil size={12} />
+                  修改
+                </button>
+              )}
+            </div>
+            {isDepositEditing ? (
+              <>
+                <Select
+                  value={depositValue ? "paid" : "unpaid"}
+                  onValueChange={(value) => setDepositValue(value === "paid")}
+                  disabled={isDepositSaving}
+                >
+                  <SelectTrigger className="w-full" aria-label="定金状态">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid">已支付定金</SelectItem>
+                    <SelectItem value="unpaid">未支付定金</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="reservation-edit-actions">
+                  <Button
+                    variant="ghost"
+                    disabled={isDepositSaving}
+                    onClick={() => setIsDepositEditing(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    disabled={
+                      isDepositSaving ||
+                      depositValue === reservation.depositPaid
+                    }
+                    onClick={handleDepositModify}
+                  >
+                    {isDepositSaving ? "保存中…" : "保存状态"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <span
+                className={`admin-chip ${reservation.depositPaid ? "green" : "yellow"}`}
+              >
+                {depositLabel}
+              </span>
+            )}
+          </section>
+        </div>
+        <aside className="reservation-detail-column">
+          <section
+            className="admin-panel customer-profile-card"
+            style={{ margin: 0 }}
+          >
+            <div className="customer-profile-top">
+              <span className="admin-avatar">
+                <UserRound size={22} />
+              </span>
+              <div>
+                <h2>{reservation.user || "未填写姓名"}</h2>
+                <span
+                  className={`admin-chip ${reservation.currentMemberShip === "vip" ? "yellow" : "neutral"}`}
+                >
+                  {reservation.currentMemberShip === "vip"
+                    ? "预约时为 VIP 会员"
+                    : "预约时为普通顾客"}
+                </span>
               </div>
             </div>
-
-            <div className="mt-8 flex flex-col md:flex-row gap-4 justify-center">
-              <Button
-                className="bg-gradient-to-r from-purple-500 to-pink-600 active:from-purple-600 active:to-pink-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105"
-                onClick={handleSmartBack}
-              >
-                <div className="text-white">返回上一页</div>
-              </Button>
-              <Button
-                className="bg-gradient-to-r from-purple-500 to-pink-600 active:from-purple-600 active:to-pink-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105"
-                onClick={() => router.push("/calendar")}
-              >
-                <div className="text-white">返回日历</div>
-              </Button>
-
-              <Button
-                className="bg-gradient-to-r from-red-500 to-red-600 active:from-red-600 active:to-red-700 text-white px-6 py-2 rounded-full shadow-md transition-all duration-300 transform active:scale-105"
-                onClick={() => setOpenDialog(true)}
-              >
-                取消预约
-              </Button>
+            <div className="customer-profile-info">
+              <div className="customer-info-row">
+                <span>登录方式</span>
+                <strong>{getProviderName(reservation.provider)}</strong>
+              </div>
+              <div className="customer-info-row">
+                <span>邮箱</span>
+                <strong>{reservation.contact || "未填写"}</strong>
+              </div>
+              <div className="customer-info-row">
+                <span>
+                  {contactLabels[reservation.altContactType] || "其他联系"}
+                </span>
+                <strong>{reservation.altContact || "未填写"}</strong>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg shadow-md">
-          <p className="text-yellow-700 font-medium">未找到预约信息</p>
-        </div>
-      )}
-
-      {/* 图片放大弹窗 */}
-      {isImageModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center"
-          onClick={() => setIsImageModalOpen(false)}
-        >
-          <Button
-            onClick={() => setIsImageModalOpen(false)}
-            className="absolute top-0 p-0! right-0 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-b-full rounded-l-full rounded-t-none rounded-r-none shadow-lg flex items-center justify-center hover:bg-white transition-all duration-200"
+            {!isEditing ? (
+              <div className="admin-inline mt-4 justify-between">
+                <button
+                  className="admin-soft-action"
+                  onClick={() => {
+                    setContactValue(reservation.altContact);
+                    setSelectedContactType(
+                      reservation.altContactType || "wechat",
+                    );
+                    setIsEditing(true);
+                  }}
+                >
+                  <Pencil size={12} />
+                  联系方式
+                </button>
+                {reservation.userId && (
+                  <Link
+                    className="admin-soft-action"
+                    href={`/dashboard/user-reservation/user-detail?userId=${reservation.userId}`}
+                  >
+                    顾客资料
+                    <ArrowUpRight size={12} />
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="admin-field mt-4">
+                <label htmlFor="contact-type">联系方式</label>
+                <Select
+                  value={selectedContactType || "wechat"}
+                  onValueChange={setSelectedContactType}
+                >
+                  <SelectTrigger id="contact-type" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(contactLabels).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  aria-label="联系账号或号码"
+                  placeholder="联系账号或号码"
+                  value={contactValue}
+                  onChange={(e) => setContactValue(e.target.value)}
+                  disabled={isSaving}
+                />
+                <div className="reservation-edit-actions">
+                  <Button
+                    variant="ghost"
+                    disabled={isSaving}
+                    onClick={() => setIsEditing(false)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    disabled={
+                      isSaving ||
+                      !contactValue.trim() ||
+                      (contactValue === reservation.altContact &&
+                        selectedContactType === reservation.altContactType)
+                    }
+                    onClick={handleModifyContact}
+                  >
+                    {isSaving ? "保存中…" : "保存"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+          {reservation.userId && (
+            <CustomerNoteCard userId={reservation.userId} />
+          )}
+          <section className="admin-panel reservation-receipt">
+            <div className="admin-panel-heading">
+              <h2 className="flex items-center gap-2">
+                <Receipt size={16} className="text-purple-300" />
+                付款凭证
+              </h2>
+            </div>
+            {reservation.uploadImage ? (
+              <button
+                onClick={() => setIsImageModalOpen(true)}
+                aria-label="查看完整付款凭证"
+              >
+                <Image
+                  src={reservation.uploadImage}
+                  alt="顾客付款凭证"
+                  width={500}
+                  height={400}
+                  unoptimized
+                />
+                <span className="admin-subtle block mt-3">
+                  点击查看完整图片 ↗
+                </span>
+              </button>
+            ) : (
+              <p className="admin-subtle">这次预约没有上传付款凭证。</p>
+            )}
+          </section>
+          <button
+            className="reservation-cancel"
+            onClick={() => setOpenDialog(true)}
           >
-            <span className="text-gray-700 font-bold text-xl">×</span>
-          </Button>
-          {reservation?.uploadImage && (
+            <Trash2 size={13} />
+            取消这次预约
+          </button>
+        </aside>
+      </div>
+      <Dialog
+        open={openDialog}
+        onOpenChange={(value) => {
+          if (!cancelling) setOpenDialog(value);
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>确认取消这次预约？</DialogTitle>
+          <DialogDescription className="leading-7">
+            {reservation.user} · {reservation.date} {reservation.timeslot} ·{" "}
+            {reservation.nailArtist}。取消后，该时段将重新开放预约。
+          </DialogDescription>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={cancelling}
+              onClick={() => setOpenDialog(false)}
+            >
+              保留预约
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelling}
+              onClick={handleDelete}
+            >
+              {cancelling ? "取消中…" : "确认取消预约"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogTitle>付款凭证</DialogTitle>
+          <DialogDescription>顾客为这次预约提交的付款截图。</DialogDescription>
+          {reservation.uploadImage && (
             <Image
               src={reservation.uploadImage}
-              alt="转账截图"
-              width={800}
-              height={600}
-              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+              alt="完整付款凭证"
+              width={1200}
+              height={1400}
+              className="max-h-[70svh] w-full object-contain"
+              unoptimized
             />
           )}
-        </div>
-      )}
-
-      {/* 取消预约确认弹窗 */}
-      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="bg-white rounded-2xl border-4 border-pink-200 p-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-pink-400 to-purple-400 py-4 px-6">
-            <DialogTitle className="text-white font-bold text-xl">
-              确认取消预约？
-            </DialogTitle>
-          </div>
-          <div className="p-6">
-            <p className="text-gray-600 mb-6">
-              取消后将无法恢复，确定要取消这条预约吗？
-            </p>
-            <DialogFooter className="flex gap-3 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setOpenDialog(false)}
-                className="border-pink-300 text-pink-500 hover:bg-pink-50"
-              >
-                返回
-              </Button>
-              <Button
-                variant="destructive"
-                className="bg-gradient-to-r from-red-400 to-pink-500 hover:from-red-500 hover:to-pink-600 border-none"
-                onClick={handleDelete}
-              >
-                确认取消
-              </Button>
-            </DialogFooter>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -18,5 +18,9 @@ const nextConfig: NextConfig = {
 export default withPWA({
   dest: 'public',
   disable: isDev,
-  register: true
+  register: true,
+  workboxOptions: {
+    // Customer notes, auth responses and private references must never be cached offline.
+    runtimeCaching: [{ urlPattern: /^https?:\/\/[^/]+\/api\//, handler: 'NetworkOnly' }],
+  }
 })(nextConfig)

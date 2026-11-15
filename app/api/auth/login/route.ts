@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { neon } from "@neondatabase/serverless";
-const SECRET = process.env.JWT_SECRET || "secret";
+import { scryptSync, timingSafeEqual } from "node:crypto";
+import { sql } from "@/lib/sql";
+const SECRET = process.env.JWT_SECRET;
 
 export async function POST(req: Request) {
-  const { username, password } = await req.json();
-  if (username === "beavernail" && password === "DylanBee23!") {
+  if (!SECRET) return NextResponse.json({ error: "请先配置 JWT_SECRET" }, { status: 503 });
+  let input;
+  try { input = await req.json(); } catch { return NextResponse.json({ error: "请求格式错误" }, { status: 400 }); }
+  const { username, password } = input || {};
+  if (typeof username !== "string" || typeof password !== "string" || !username || !password || username.length > 100 || password.length > 200)
+    return NextResponse.json({ error: "请输入有效的账号和密码" }, { status: 400 });
+  const configuredHash = process.env.STUDIO_MANAGER_PASSWORD_HASH;
+  let managerPasswordValid = false;
+  if (username === "beavernail" && configuredHash) {
+    const [scheme, salt, digest] = configuredHash.split(":");
+    if (scheme === "scrypt" && salt && /^[a-f0-9]{128}$/.test(digest || ""))
+      managerPasswordValid = timingSafeEqual(scryptSync(password, salt, 64), Buffer.from(digest, "hex"));
+  }
+  if (username === "beavernail" && managerPasswordValid) {
     const accessToken = jwt.sign(
       {
         id: "beavernail-id",
@@ -41,11 +54,7 @@ export async function POST(req: Request) {
       },
     });
   }
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not defined");
-  }
-  const sql = neon(databaseUrl);
+
 
   try {
     // 根据用户名和密码查询美甲师
@@ -54,7 +63,6 @@ export async function POST(req: Request) {
         "NailArtist"."id",
         "NailArtist"."name",
         "NailArtist"."account",
-        "NailArtist"."password",
         "NailArtist"."membertype",
         "NailArtist"."name" as "nailArtistName"
       FROM
@@ -64,7 +72,6 @@ export async function POST(req: Request) {
         "NailArtist"."password" = ${password}
     `;
 
-    console.log("nailArtistInfo:", nailArtistInfo);
 
     // 如果找到匹配的美甲师
     if (nailArtistInfo.length > 0) {

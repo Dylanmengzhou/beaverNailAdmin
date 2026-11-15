@@ -1,0 +1,540 @@
+{
+  "services": [
+    {
+      "id": "nails",
+      "names": {
+        "zh": "美甲",
+        "en": "Nails",
+        "kr": "네일"
+      },
+      "theme": "pink",
+      "enabled": true,
+      "sections": [
+        {
+          "id": "0",
+          "title": {
+            "zh": "手 Hands",
+            "en": "Hands",
+            "kr": "손 Hands"
+          },
+          "subtitle": {
+            "zh": "",
+            "en": "",
+            "kr": ""
+          },
+          "items": [
+            {
+              "id": "0",
+              "name": {
+                "zh": "纯色",
+                "en": "Solid Color",
+                "kr": "원컬러"
+              },
+              "price": "45,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "1",
+              "name": {
+                "zh": "猫眼",
+                "en": "Cat Eye",
+                "kr": "자석젤"
+              },
+              "price": "50,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "2",
+              "name": {
+                "zh": "法式/渐变",
+                "en": "French / Ombre",
+                "kr": "프렌치 / 그라데이션"
+              },
+              "price": "55,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "3",
+              "name": {
+                "zh": "延长（单根）",
+                "en": "Extension (per nail)",
+                "kr": "연장 (1개 당)"
+              },
+              "price": "6,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "4",
+              "name": {
+                "zh": "基础款式",
+                "en": "Basic Design",
+                "kr": "기본 아트"
+              },
+              "price": "65,000~",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "5",
+              "name": {
+                "zh": "复杂款式",
+                "en": "Advanced Design",
+                "kr": "복잡 아트"
+              },
+              "price": "80,000~",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "1",
+          "title": {
+            "zh": "脚 Pedi",
+            "en": "Pedicure",
+            "kr": "페디 Pedi"
+          },
+          "subtitle": {
+            "zh": "",
+            "en": "",
+            "kr": ""
+          },
+          "items": [
+            {
+              "id": "0",
+              "name": {
+                "zh": "纯色",
+                "en": "Solid Color",
+                "kr": "원컬러"
+              },
+              "price": "55,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "1",
+              "name": {
+                "zh": "款式",
+                "en": "Nail Art",
+                "kr": "아트"
+              },
+              "price": "75,000~",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "title": {
+            "zh": "卸甲 Removal",
+            "en": "Gel Removal",
+            "kr": "제거 Removal"
+          },
+          "subtitle": {
+            "zh": "",
+            "en": "",
+            "kr": ""
+          },
+          "items": [
+            {
+              "id": "0",
+              "name": {
+                "zh": "本店无/有延长",
+                "en": "Our salon (without/with extensions)",
+                "kr": "본샵 연장 없음/있음"
+              },
+              "price": "5,000/10,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "1",
+              "name": {
+                "zh": "其他店无/有延长",
+                "en": "Other salon (without/with extensions)",
+                "kr": "타샵 연장 없음/있음"
+              },
+              "price": "15,000/20,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "zh": "* 以上价格均为韩币",
+          "en": "* All prices are in KRW",
+          "kr": "* 상기 가격은 원(KRW) 기준입니다."
+        },
+        {
+          "zh": "* 所有项目均带建构",
+          "en": "* All services include gel base & builder",
+          "kr": "* 모든 시술은 기본게어, 오브레이 포함입니다."
+        },
+        {
+          "zh": "* 以上价格为现金价 (刷卡的话附加税+10%)",
+          "en": "* Prices listed are cash prices (10% VAT applied if paying by card)",
+          "kr": "* 상기 가격은 현금가이며, 카드 결제시 부가세 별도(10%)."
+        },
+        {
+          "zh": "* 本店美甲续做时，免费卸甲",
+          "en": "* Free removal for gel done at our salon when getting new nails",
+          "kr": "* 본샵 시술젤 제거는 재시술시 무료입니다."
+        },
+        {
+          "zh": "刷卡结算时附加税 +10%",
+          "en": "Card payments incur an additional 10% tax.",
+          "kr": "카드 결제 시 부가세 10%가 추가됩니다."
+        }
+      ]
+    },
+    {
+      "id": "makeup",
+      "names": {
+        "zh": "化妆与造型",
+        "en": "Makeup & hair",
+        "kr": "메이크업 & 헤어"
+      },
+      "theme": "yellow",
+      "enabled": true,
+      "sections": [
+        {
+          "id": "0",
+          "title": {
+            "zh": "女士妆发",
+            "en": "Women’s makeup & hair",
+            "kr": "여성 헤어 & 메이크업"
+          },
+          "subtitle": {
+            "zh": "包含发型",
+            "en": "Hair styling included",
+            "kr": "헤어 포함"
+          },
+          "items": [
+            {
+              "id": "0",
+              "name": {
+                "zh": "日常生活妆发",
+                "en": "Everyday makeup & hair",
+                "kr": "데일리 헤어 & 메이크업"
+              },
+              "price": "100,000",
+              "note": {
+                "zh": "不含假睫毛",
+                "en": "False lashes not included",
+                "kr": "인조 속눈썹 미포함"
+              }
+            },
+            {
+              "id": "1",
+              "name": {
+                "zh": "上镜妆 / 证件照妆 / 韩服妆",
+                "en": "Camera-ready / ID photo / hanbok makeup",
+                "kr": "촬영 / 증명사진 / 한복 메이크업"
+              },
+              "price": "120,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "2",
+              "name": {
+                "zh": "演唱会手绘妆 / 万圣节特殊妆",
+                "en": "Concert face art / Halloween special effects makeup",
+                "kr": "콘서트 페이스아트 / 할로윈 특수 메이크업"
+              },
+              "price": "150,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "1",
+          "title": {
+            "zh": "男士妆发",
+            "en": "Men’s makeup & hair",
+            "kr": "남성 헤어 & 메이크업"
+          },
+          "subtitle": {
+            "zh": "包含发型",
+            "en": "Hair styling included",
+            "kr": "헤어 포함"
+          },
+          "items": [
+            {
+              "id": "0",
+              "name": {
+                "zh": "韩式日常生活妆发 / 简约证件照妆发",
+                "en": "Korean everyday / natural ID photo makeup & hair",
+                "kr": "데일리 / 내추럴 증명사진 헤어 & 메이크업"
+              },
+              "price": "80,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "1",
+              "name": {
+                "zh": "韩式精致上镜妆 / 精致证件照妆 / 爱豆妆发",
+                "en": "Detailed camera-ready / ID photo / idol makeup & hair",
+                "kr": "정교한 촬영 / 증명사진 / 아이돌 헤어 & 메이크업"
+              },
+              "price": "10,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "title": {
+            "zh": "单妆",
+            "en": "Makeup only",
+            "kr": "메이크업 단독"
+          },
+          "subtitle": {
+            "zh": "不含发型",
+            "en": "Hair styling not included",
+            "kr": "헤어 미포함"
+          },
+          "items": [
+            {
+              "id": "0",
+              "name": {
+                "zh": "日常生活妆",
+                "en": "Everyday makeup",
+                "kr": "데일리 메이크업"
+              },
+              "price": "80,000",
+              "note": {
+                "zh": "不含假睫毛",
+                "en": "False lashes not included",
+                "kr": "인조 속눈썹 미포함"
+              }
+            },
+            {
+              "id": "1",
+              "name": {
+                "zh": "上镜妆 / 证件照妆 / 韩服妆",
+                "en": "Camera-ready / ID photo / hanbok makeup",
+                "kr": "촬영 / 증명사진 / 한복 메이크업"
+              },
+              "price": "99,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "2",
+              "name": {
+                "zh": "演唱会手绘妆 / 万圣节特殊妆",
+                "en": "Concert face art / Halloween special effects makeup",
+                "kr": "콘서트 페이스아트 / 할로윈 특수 메이크업"
+              },
+              "price": "130,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "3",
+              "name": {
+                "zh": "男士日常生活妆 / 简约证件照妆",
+                "en": "Men’s everyday / natural ID photo makeup",
+                "kr": "남성 데일리 / 내추럴 증명사진 메이크업"
+              },
+              "price": "59,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "4",
+              "name": {
+                "zh": "男士精致上镜妆 / 写真妆 / 爱豆妆",
+                "en": "Men’s detailed camera-ready / portrait / idol makeup",
+                "kr": "남성 정교한 촬영 / 프로필 / 아이돌 메이크업"
+              },
+              "price": "89,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "title": {
+            "zh": "单发型",
+            "en": "Hair styling only",
+            "kr": "헤어 단독"
+          },
+          "subtitle": {
+            "zh": "不含化妆",
+            "en": "Makeup not included",
+            "kr": "메이크업 미포함"
+          },
+          "items": [
+            {
+              "id": "0",
+              "name": {
+                "zh": "直发 / 基础卷发",
+                "en": "Straight hair / basic curls",
+                "kr": "스트레이트 / 기본 웨이브"
+              },
+              "price": "29,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "1",
+              "name": {
+                "zh": "扎发 / 半盘发 / 鸡毛头",
+                "en": "Ponytail / half-up / spiky bun",
+                "kr": "묶음 머리 / 반묶음 / 가시 번"
+              },
+              "price": "39,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "2",
+              "name": {
+                "zh": "女士编发",
+                "en": "Women’s braids",
+                "kr": "여성 브레이드"
+              },
+              "price": "49,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            },
+            {
+              "id": "3",
+              "name": {
+                "zh": "男士发型",
+                "en": "Men’s hair styling",
+                "kr": "남성 헤어"
+              },
+              "price": "39,000",
+              "note": {
+                "zh": "",
+                "en": "",
+                "kr": ""
+              }
+            }
+          ]
+        }
+      ],
+      "notes": [
+        {
+          "zh": "* 以上价格均为韩币",
+          "en": "* All prices are in KRW",
+          "kr": "* 상기 가격은 원(KRW) 기준입니다."
+        },
+        {
+          "zh": "* 所有项目均带建构",
+          "en": "* All services include gel base & builder",
+          "kr": "* 모든 시술은 기본게어, 오브레이 포함입니다."
+        },
+        {
+          "zh": "* 以上价格为现金价 (刷卡的话附加税+10%)",
+          "en": "* Prices listed are cash prices (10% VAT applied if paying by card)",
+          "kr": "* 상기 가격은 현금가이며, 카드 결제시 부가세 별도(10%)."
+        },
+        {
+          "zh": "* 本店美甲续做时，免费卸甲",
+          "en": "* Free removal for gel done at our salon when getting new nails",
+          "kr": "* 본샵 시술젤 제거는 재시술시 무료입니다."
+        },
+        {
+          "zh": "刷卡结算时附加税 +10%",
+          "en": "Card payments incur an additional 10% tax.",
+          "kr": "카드 결제 시 부가세 10%가 추가됩니다."
+        }
+      ]
+    }
+  ],
+  "about": {
+    "zh": "嘿～欢迎光临我们的指尖星球！✨\n\n我们是一家藏在弘大樱花步行街旁的美甲店，温柔又有点小俏皮，专治各种\"不开心\"和\"手部空虚症\"～🌸\n\n在这里，你可以慢慢选颜色，慢慢挑风格，也可以一边做指甲一边大聊八卦，反正时间是你的，美也只属于你自己💅。\n\n## 老板娘碎碎念\n\n我是这家店的创始人 & 唯一指定造梦师（请叫我老板娘也行嘿嘿😎）\n从小就超爱打扮，小时候用妈妈的指甲油涂得满手都是，还觉得自己美得不得了～\n\n高中时一个人来到韩国，语言不通、人生重启，但对「美」的热爱没变过！\n我毕业于西京大学美容美发专业，从高中开始就狂考国家资格证：\n\n- 国家级化妆师证\n- 国家级色彩鉴定资格证\n- 国家级美甲师证\n- 还有无数个练手模型小手陪我熬夜奋斗\n\n疫情时期，一边上课一边做单，还得养活自己交学费，靠双手换生活。一步步从小白变成专业美甲师，收获了无数来自不同国家的朋友，真的太值得了。\n\n五年过去，我终于！把这个属于我的小店开出来啦 🎉\n\n## 我们的店，有点特别\n\n- 🌸 在樱花路边，推门就能拍出春日感大片\n- 💅 私人定制，每次来都不重样\n- 🎧 安静舒服，聊天or躺平随你选\n- 💖 Y2K、多巴胺、甜酷辣妹风，全部安排！\n- 🎁 每次来都有小惊喜，我们就是爱整活儿！\n- 🫶 我们不赶时间，更在乎你有没有开心\n\n## 我们的宗旨\n\n> “没有最好的美甲，只有永远的服务 + 真心的友情！”\n\n每一双手背后，都是一个努力生活的你，而我希望能在你最需要的小空隙里，成为你的\"快乐制造机\"🎈\n\n下次心情不好？来坐坐。\n不做美甲也欢迎喝杯咖啡聊聊天～\n因为我们不仅是美甲店，更是你生活里的小确幸✨",
+    "en": "Hey~ Welcome to our fingertip universe! ✨\n\nWe're a cozy and playfulnail salonhidden near Hongdae's Cherry Blossom Street, dedicated to curing all kinds of \"bad moods\" and \"empty-hand syndrome\"~🌸\n\nHere, you can leisurely choose colors, styles, or even chat about anything while getting your nails done, after all,time is yours, and beauty belongs only to you 💅.\n\n## A Word from the Owner\n\nI'm the founder & exclusive dream-maker of this salon (just call me boss lady 😎)\nSince childhood, I've adored dressing up. I'd paint my hands with mom's nail polish, feeling absolutely gorgeous!\n\nI came to Korea alone in high school, starting from zero due to the language barrier, but my love for beauty never changed!\nI graduated from Seokyeong University with a major in Beauty & Hair Design. Since high school, I've been collecting national certificates:\n\n- National Makeup Artist Certificate\n- National Color Analyst Certificate\n- National Nail Technician Certificate\n- And countless practice-hand models accompanying me through sleepless nights\n\nDuring the pandemic, I juggled classes and freelance work to support myself and pay tuition. Step by step, I went from a novice to a professional nail technician, making countless international friends along the way—it was truly rewarding.\n\nAfter five years, I've finally opened my own little salon! 🎉\n\n## What Makes Us Special\n\n- 🌸 Located beside Cherry Blossom Road—just open the door for a perfect springtime snapshot\n- 💅 Personalized nail art that’s unique each visit\n- 🎧 Quiet and cozy—chat or relax, your choice\n- 💖 Y2K, dopamine, sweet & cool girl vibes—all styles available!\n- 🎁 Little surprises every time—we just love being creative!\n- 🫶 We're never in a hurry; your happiness is what matters most\n\n## Our Philosophy\n\n> \"There's no such thing as the best manicure,only endless service and genuine friendship!\"\n\nBehind every pair of hands is a hardworking you. I hope to become your little \"happiness machine\" when you need it most 🎈\n\nFeeling down? Come and visit.\nEven if you're not here for nails, stop by for coffee and a chat~\nBecause we're more than a nail salon—we're your daily dose of happiness✨",
+    "kr": "헤이~ 우리의 손끝 세상에 오신 것을 환영합니다! ✨\n\n홍대 벚꽃거리 옆에 위치한네일샵입니다. 따뜻하고 귀여운 분위기로 '우울함'과 '손 허전증'을 치료해드려요~ 🌸\n\n여기서는 천천히 컬러를 고르고, 천천히 스타일을 선택하면서 수다도 떨 수 있어요. 어차피시간은 당신의 것, 아름다움도 오직 당신만의 것이니까요 💅\n\n## 원장님의 이야기\n\n저는 이 샵의 창립자이자 유일한 꿈 메이커예요 (원장님이라고 불러주셔도 좋아요 히히😎)\n어렸을 때부터 꾸미는 걸 너무 좋아했어요. 엄마의 매니큐어로 손을 잔뜩 칠하고 예쁘다고 생각했죠~\n\n고등학교 때 혼자 한국에 왔어요. 언어도 통하지 않고 인생도 리셋됐지만, '아름다움'에 대한 사랑은 변함없었어요!\n서경대학교 미용예술학과를 졸업했고, 고등학교 때부터 국가자격증을 열심히 취득했어요:\n\n- 국가공인 메이크업 아티스트 자격증\n- 국가공인 컬러리스트 자격증\n- 국가공인 네일 아티스트 자격증\n- 그리고 수많은 연습용 모형 손과 함께한 밤샘 공부\n\n코로나 시기에도 수업을 들으면서 일하고, 학비도 벌어야 했죠. 손으로 생계를 이어갔어요. 초보에서 전문 네일 아티스트가 되기까지, 여러 나라의 친구들을 만났고 정말 보람찼어요.\n\n5년이 지나고, 드디어! 제 가게를 오픈했어요 🎉\n\n## 우리 샵은 조금 특별해요\n\n- 🌸 벚꽃거리 옆에서 문만 열어도 봄날 감성 사진\n- 💅 개인 맞춤형, 매번 새로운 디자인\n- 🎧 조용하고 편안한 공간, 수다도 좋고 휴식도 좋아요\n- 💖 Y2K, 도파민, 힙한 스타일 모두 가능해요!\n- 🎁 매번 작은 서프라이즈, 우리는 재미있는 걸 좋아해요!\n- 🫶 시간에 쫓기지 않고, 당신의 행복이 더 중요해요\n\n## 우리의 모토\n\n> \"최고의 네일아트가 아닌,영원한 서비스와 진심 어린 우정을 약속드립니다!\"\n\n모든 손 뒤에는 열심히 살아가는 당신이 있어요. 당신이 가장 필요로 하는 순간에 '행복 제조기'가 되어드리고 싶어요 🎈\n\n기분 안 좋으세요? 들러주세요.\n네일아트 안 하셔도 커피 마시면서 수다 떨어요~\n우리는 네일샵일 뿐만 아니라, 당신 일상의 작은 행복이니까요 ✨"
+  },
+  "events": [],
+  "contact": {
+    "address": "서울 마포구 서교동 325-7 301",
+    "phone": "",
+    "wechat": "Beaver_nail",
+    "instagram": "beaver_nail",
+    "redbook": "beaver_NANA",
+    "email": "beavernail2025@gmail.com",
+    "bankName": "신한",
+    "bankAccount": "110-599-652515",
+    "bankHolder": "정영나(비버네일)"
+  }
+}
