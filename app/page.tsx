@@ -5,10 +5,11 @@ import { ArrowUpRight, Flower2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AdminBrand } from "@/components/admin/AdminShell";
+import { AdminBrand, useAdminLogin } from "@/components/admin/AdminShell";
 import { adminFetch } from "@/lib/admin-fetch";
 export default function LoginPage() {
   const router = useRouter();
+  const startSession = useAdminLogin();
   const [loading, setLoading] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function LoginPage() {
       if (!response.ok) throw new Error(result.error || "账号或密码不正确");
       localStorage.setItem("accessToken", result.accessToken);
       localStorage.setItem("refreshToken", result.refreshToken);
+      if (result.session) startSession?.(result.accessToken, result.session);
       toast.success("欢迎回来");
       router.push("/calendar");
     } catch (e) {
@@ -78,7 +80,7 @@ export default function LoginPage() {
           <p className="admin-eyebrow">YOUR LOVELY LITTLE WORKSPACE</p>
           <h1>欢迎回来</h1>
           <p>登录管理端，开始打理今天的漂亮约定。</p>
-          <form action={login}>
+          <form action={login} onFocus={() => router.prefetch("/calendar")}>
             <div className="admin-field">
               <label htmlFor="username">账号</label>
               <Input

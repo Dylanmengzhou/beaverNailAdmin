@@ -19,7 +19,16 @@ export default withPWA({
   dest: 'public',
   disable: isDev,
   register: true,
+  publicExcludes: ['!noprecache/**/*', '!images/**/*', '!fonts/**/*'],
   workboxOptions: {
+    // Skip generated API chunks and fonts the current page doesn't preload.
+    manifestTransforms: [async (entries) => ({
+      manifest: entries.filter(({ url }) =>
+        !url.includes('/static/chunks/app/api/') &&
+        (!url.endsWith('.woff2') || url.endsWith('.p.woff2')),
+      ),
+      warnings: [],
+    })],
     // Customer notes, auth responses and private references must never be cached offline.
     runtimeCaching: [{ urlPattern: /^https?:\/\/[^/]+\/api\//, handler: 'NetworkOnly' }],
   }

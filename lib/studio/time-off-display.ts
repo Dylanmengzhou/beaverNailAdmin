@@ -8,12 +8,14 @@ export type TimeOff = {
   endsAt: string;
   reason: string | null;
 };
+type TimeOffRange = Pick<TimeOff, "startsAt" | "endsAt">;
+export type CalendarTimeOff = Omit<TimeOff, "reason">;
 
 export const studioZone = "Asia/Seoul";
 
 // Only whole-store breaks affect store opening status. The exclusive end also
 // keeps a break ending at midnight from marking the following day as closed.
-export function storeDayStatus(day:string,closedWeekdays:readonly number[],records:readonly TimeOff[]){
+export function storeDayStatus(day:string,closedWeekdays:readonly number[],records:readonly CalendarTimeOff[]){
   if(isWeeklyClosure(day,closedWeekdays))return {kind:"closed" as const,reason:"固定店休"};
   const start=slotInstant(day,"00:00").getTime(),end=start+24*60*60*1000;
   const periods=records.filter(record=>!record.nailArtistId)
@@ -28,17 +30,17 @@ export function storeDayStatus(day:string,closedWeekdays:readonly number[],recor
 export type RestStaff=Omit<StaffSchedule,"id">&{id?:string;name:string};
 export type RestPerson={id:string;name:string;period:string;reason:string};
 
-function periodsOnDay(day:string,records:readonly TimeOff[]){
+function periodsOnDay(day:string,records:readonly TimeOffRange[]){
  const start=slotInstant(day,"00:00").getTime(),end=start+86400000;
  const intervals=records.map(record=>[Math.max(start,Date.parse(record.startsAt)),Math.min(end,Date.parse(record.endsAt))])
   .filter(([from,to])=>from<to).sort((a,b)=>a[0]-b[0]);
  const merged:number[][]=[];
  for(const interval of intervals){const last=merged.at(-1);if(last&&interval[0]<=last[1])last[1]=Math.max(last[1],interval[1]);else merged.push([...interval]);}
- const clock=(instant:number)=>instant===end?"24:00":new Intl.DateTimeFormat("zh-CN",{timeZone:studioZone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(instant));
+ const clock=(instant:number)=>instant===end?"24:00":time.format(new Date(instant));
  return merged.map(([from,to])=>from===start&&to===end?"全天":clock(from)+"–"+clock(to));
 }
 
-export function restDayOverview(day:string,closedWeekdays:readonly number[],records:readonly TimeOff[],staff:readonly RestStaff[]){
+export function restDayOverview(day:string,closedWeekdays:readonly number[],records:readonly CalendarTimeOff[],staff:readonly RestStaff[]){
  const store=storeDayStatus(day,closedWeekdays,records);
  const weekday=new Date(day+"T00:00:00Z").getUTCDay();
  const people:RestPerson[]=[];
@@ -84,7 +86,7 @@ export function timeOffBounds(
   return { startsAt, endsAt };
 }
 
-export function calendarSpan(record: TimeOff) {
+export function calendarSpan(record: TimeOffRange) {
   // The end is exclusive, so a break ending at midnight belongs to the preceding day.
   return {
     from: seoulDay(new Date(record.startsAt)),

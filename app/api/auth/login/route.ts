@@ -2,7 +2,35 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { scryptSync, timingSafeEqual } from "node:crypto";
 import { sql } from "@/lib/sql";
+import type { StaffActor } from "@/lib/studio/auth";
 const SECRET = process.env.JWT_SECRET;
+
+function loginResponse(
+  actor: Omit<StaffActor, "exp">,
+  displayName: string,
+  secret: string,
+) {
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const accessLifetime = 7 * 24 * 60 * 60;
+  const claims = { ...actor, iat: issuedAt };
+  return NextResponse.json({
+    success: true,
+    accessToken: jwt.sign(claims, secret, { expiresIn: accessLifetime }),
+    refreshToken: jwt.sign(claims, secret, { expiresIn: "14d" }),
+    user: {
+      id: actor.id,
+      name: displayName,
+      account: actor.username,
+      memberType: actor.memberType,
+      nailArtistName: actor.nailArtistName,
+    },
+    session: {
+      ...actor,
+      exp: issuedAt + accessLifetime,
+      nailArtistName: actor.id === "beavernail-id" ? "管理员" : actor.nailArtistName,
+    },
+  }, { headers: { "Cache-Control": "private, no-store" } });
+}
 
 export async function POST(req: Request) {
   if (!SECRET) return NextResponse.json({ error: "请先配置 JWT_SECRET" }, { status: 503 });
@@ -19,42 +47,12 @@ export async function POST(req: Request) {
       managerPasswordValid = timingSafeEqual(scryptSync(password, salt, 64), Buffer.from(digest, "hex"));
   }
   if (username === "beavernail" && managerPasswordValid) {
-    const accessToken = jwt.sign(
-      {
-        id: "beavernail-id",
-        username: "beavernail",
-        memberType: "manager",
-        nailArtistName: "beavernail",
-      },
+    return loginResponse(
+      { id: "beavernail-id", username, memberType: "manager", nailArtistName: username },
+      username,
       SECRET,
-      { expiresIn: "7d" }
     );
-
-    const refreshToken = jwt.sign(
-      {
-        id: "beavernail-id",
-        username: "beavernail",
-        memberType: "manager",
-        nailArtistName: "beavernail",
-      },
-      SECRET,
-      { expiresIn: "14d" }
-    );
-
-    return NextResponse.json({
-      success: true,
-      accessToken,
-      refreshToken,
-      user: {
-        id: "beavernail-id",
-        name: "beavernail",
-        account: "beavernail",
-        memberType: "manager",
-        nailArtistName: "beavernail",
-      },
-    });
   }
-
 
   try {
     // 根据用户名和密码查询美甲师
@@ -73,42 +71,18 @@ export async function POST(req: Request) {
     `;
 
 
-    // 如果找到匹配的美甲师
-    if (nailArtistInfo.length > 0) {
-      const accessToken = jwt.sign(
+    const artist = nailArtistInfo[0];
+    if (artist) {
+      return loginResponse(
         {
-          id: nailArtistInfo[0].id,
-          username: nailArtistInfo[0].account,
-          memberType: nailArtistInfo[0].membertype==="manager"?"manager":"staff",
-          nailArtistName: nailArtistInfo[0].nailArtistName,
+          id: artist.id,
+          username: artist.account,
+          memberType: artist.membertype === "manager" ? "manager" : "staff",
+          nailArtistName: artist.nailArtistName,
         },
+        artist.name,
         SECRET,
-        { expiresIn: "7d" }
       );
-
-      const refreshToken = jwt.sign(
-        {
-          id: nailArtistInfo[0].id,
-          username: nailArtistInfo[0].account,
-          memberType: nailArtistInfo[0].membertype==="manager"?"manager":"staff",
-          nailArtistName: nailArtistInfo[0].nailArtistName,
-        },
-        SECRET,
-        { expiresIn: "14d" }
-      );
-
-      return NextResponse.json({
-        success: true,
-        accessToken,
-        refreshToken,
-        user: {
-          id: nailArtistInfo[0].id,
-          name: nailArtistInfo[0].name,
-          account: nailArtistInfo[0].account,
-          memberType: nailArtistInfo[0].membertype==="manager"?"manager":"staff",
-          nailArtistName: nailArtistInfo[0].nailArtistName,
-        },
-      });
     }
 
     // 没有找到匹配的美甲师

@@ -27,9 +27,24 @@ test("midnight boundaries use Korea time and an exclusive end",()=>{
  assert.equal(storeDayStatus("2026-11-15",[],records).kind,"closed");
  assert.equal(storeDayStatus("2026-11-16",[],records).kind,"open");
 });
-
 const employee=(id:string,days=[0,1,2,3,4,5,6]):RestStaff=>({id,name:id,active:true,services:["nails"],durationMinutes:120,schedule:[{days,start:"10:00",end:"18:00"}]});
 
+test("both calendars use the Seoul dates of an all-day leave and exclude the following midnight", () => {
+  const leave = breakAt("2026-11-14T15:00:00Z", "2026-11-16T15:00:00Z", "bella");
+  const staff = [employee("bella")];
+  assert.deepEqual(
+    ["2026-11-14", "2026-11-15", "2026-11-16", "2026-11-17"].map(
+      (date) => restDayOverview(date, [], [leave], staff).people.map(({period}) => period),
+    ),
+    [[], ["全天"], ["全天"], []],
+  );
+});
+test("both calendars clip overnight closure to the affected dates", () => {
+  const leave = breakAt("2026-11-30T20:30:00+09:00", "2026-12-01T10:15:00+09:00");
+  assert.deepEqual(restDayOverview("2026-11-30", [], [leave], []).storePeriods, ["20:30–24:00"]);
+  assert.deepEqual(restDayOverview("2026-12-01", [], [leave], []).storePeriods, ["00:00–10:15"]);
+  assert.deepEqual(restDayOverview("2026-12-02", [], [leave], []).storePeriods, []);
+});
 test("the calendar names the employee and shows the exact personal break period",()=>{
  const result=restDayOverview("2026-11-15",[],[breakAt("2026-11-15T10:00:00+09:00","2026-11-15T12:00:00+09:00","bella")],[employee("bella"),employee("nana")]);
  assert.equal(result.store.kind,"open");assert.deepEqual(result.people,[{id:"bella",name:"bella",period:"10:00–12:00",reason:"临时休息"}]);

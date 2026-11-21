@@ -5,9 +5,10 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhLocale from "@fullcalendar/core/locales/zh-cn";
-import type { DatesSetArg, EventContentArg } from "@fullcalendar/core";
+import type { DatesSetArg, EventContentArg, EventInput } from "@fullcalendar/core";
 import {
   useEffect,
+  useMemo,
   useState,
   useRef,
   useCallback,
@@ -38,7 +39,9 @@ import {
   useAdminSession,
   useCalendarRefresh,
 } from "@/components/admin/AdminShell";
-import { seoulDay } from "@/lib/studio/booking";
+import { RestStaffEntry, RestStoreEntry } from "@/components/studio/RestCalendarEntries";
+import { dateKey, seoulDay } from "@/lib/studio/booking";
+import { restDayOverview, type CalendarTimeOff, type RestPerson, type RestStaff } from "@/lib/studio/time-off-display";
 import "./calendar.css";
 
 type Booking = {
@@ -54,6 +57,23 @@ type Booking = {
 };
 type View = "dayGridMonth" | "dayGridWeek" | "dayGridDay";
 type Range = { start: string; end: string };
+type CalendarResult = {
+  message: Booking[];
+  closedWeekdays: number[];
+  timeOff: CalendarTimeOff[];
+  restStaff: RestStaff[];
+};
+type CalendarSnapshot = {
+  range: Range;
+  scope: string;
+  receivedAt: number;
+  data: CalendarResult;
+};
+const cacheDuration = 30_000;
+const requestTimeout = 10_000;
+const covers = (available: Range, requested: Range) =>
+  available.start <= requested.start && available.end >= requested.end;
+type RestEntry = { person: RestPerson } | { kind: "closed" | "partial"; period?: string };
 const views = [
   { value: "dayGridMonth", label: "月", icon: CalendarDays },
   { value: "dayGridWeek", label: "周", icon: Columns3 },
@@ -63,16 +83,16 @@ const views = [
 export default function CalendarPage() {
   const catalog=useServiceCatalog();
   const currentUser = useAdminSession();
+  const scope = currentUser && `${currentUser.id}:${currentUser.memberType}`;
   const { version: refreshVersion, setRefreshing } = useCalendarRefresh();
   const router = useRouter();
   const calendarRef = useRef<FullCalendar>(null);
-  const requestSerial = useRef(0);
+  const cachedRanges = useRef<CalendarSnapshot[]>([]);
+  const lastRefresh = useRef({ version: refreshVersion, retry: 0 });
   const [compact, setCompact] = useState(false);
   const [viewPickerOpen, setViewPickerOpen] = useState(false);
   const [calendarView, setCalendarView] = useState<View>("dayGridMonth");
-  const [closedWeekdays, setClosedWeekdays] = useState<number[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [snapshot, setSnapshot] = useState<CalendarSnapshot>();
   const [range, setRange] = useState<Range>();
   const [displayDate, setDisplayDate] = useState(seoulDay());
   const [reload, setReload] = useState(0);
@@ -118,39 +138,72 @@ export default function CalendarPage() {
   }, []);
 
   useEffect(() => {
-    if (!currentUser || !range) return;
-    const controller = new AbortController();
-    const serial = ++requestSerial.current;
-    setLoading(true);
-    setRefreshing(true);
+    if (!scope || !range) return;
+    const forced =
+      lastRefresh.current.version !== refreshVersion || lastRefresh.current.retry !== reload;
+    lastRefresh.current = { version: refreshVersion, retry: reload };
+    const cached = cachedRanges.current.find(
+      (entry) => entry.scope === scope && covers(entry.range, range),
+    );
     setError("");
-    adminApi<{ message: Booking[]; closedWeekdays:number[] }>("/api/getNewReservation", {
+    if (cached) setSnapshot(cached);
+    if (forced) cachedRanges.current = [];
+    if (!forced && cached && Date.now() - cached.receivedAt < cacheDuration) {
+      setRefreshing(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setRefreshing(true);
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      setError("日历同步超时，请重试");
+      setRefreshing(false);
+    }, requestTimeout);
+    adminApi<CalendarResult>("/api/getNewReservation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ startDate: range.start, endDate: range.end }),
       signal: controller.signal,
     })
-      .then((result) => {
-        if (serial === requestSerial.current && !controller.signal.aborted) {
-          setBookings(result.message || []);
-          setClosedWeekdays(result.closedWeekdays);
-        }
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        const entry = { range, scope, receivedAt: Date.now(), data };
+        cachedRanges.current = [
+          entry,
+          ...cachedRanges.current.filter(
+            (previous) => previous.scope === scope && !covers(range, previous.range),
+          ),
+        ].slice(0, 3);
+        setSnapshot(entry);
       })
       .catch((e) => {
-        if (e.name !== "AbortError")
-          setError(e.message || "预约加载失败，请刷新重试");
+        if (!controller.signal.aborted)
+          setError(e.message || "日历加载失败，请重试");
       })
       .finally(() => {
+        window.clearTimeout(timeout);
         if (!controller.signal.aborted) {
-          setLoading(false);
           setRefreshing(false);
         }
       });
     return () => {
+      window.clearTimeout(timeout);
       controller.abort();
       setRefreshing(false);
     };
-  }, [currentUser, range, reload, refreshVersion, setRefreshing]);
+  }, [scope, range, reload, refreshVersion, setRefreshing]);
+
+  const data = range && snapshot && snapshot.scope === scope && covers(snapshot.range, range)
+    ? snapshot.data
+    : undefined;
+  const bookings = useMemo(() => {
+    if (!range || !data) return [];
+    return data.message.filter((booking) => {
+      const date = booking.date.slice(0, 10);
+      return range.start <= date && date <= range.end;
+    });
+  }, [data, range]);
 
   const changeView = (value: string) => {
     if (views.some((view) => view.value === value))
@@ -158,9 +211,13 @@ export default function CalendarPage() {
     setViewPickerOpen(false);
   };
   const openBooking = (id: string) => {
-    setBookings((items) =>
-      items.map((item) => (item.id === id ? { ...item, isClick: true } : item)),
-    );
+    setSnapshot((current) => current && {
+      ...current,
+      data: {
+        ...current.data,
+        message: current.data.message.map((item) => item.id === id ? { ...item, isClick: true } : item),
+      },
+    });
     void adminApi("/api/updateReservationClick", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -168,13 +225,49 @@ export default function CalendarPage() {
     }).catch(() => toast.error("已读状态暂时未同步"));
     router.push(`/reservation/${id}`);
   };
-  const events = bookings.map((booking) => ({
-    id: booking.id,
-    title: booking.name || "未知用户",
-    date: booking.date.slice(0, 10),
-    extendedProps: booking,
-  }));
+  const events = useMemo<EventInput[]>(() => {
+    const appointments = bookings.map((booking) => ({
+      id: booking.id,
+      title: booking.name || "未知用户",
+      date: booking.date.slice(0, 10),
+      extendedProps: { ...booking, priority: 2 },
+    }));
+    if (!range || !data) return appointments;
+
+    const { closedWeekdays, timeOff = [], restStaff = [] } = data;
+    const rest: EventInput[] = [];
+    const last = Date.parse(range.end);
+    for (let day = Date.parse(range.start); day <= last; day += 86_400_000) {
+      const date = dateKey(new Date(day));
+      const { store, storePeriods, people } = restDayOverview(date, closedWeekdays, timeOff, restStaff);
+      if (store.kind !== "open") {
+        rest.push({
+          id: `store-rest:${date}`,
+          title: store.reason,
+          date,
+          extendedProps: {
+            priority: 0,
+            rest: { kind: store.kind, period: store.kind === "partial" ? storePeriods.join("、") : undefined },
+          },
+        });
+      }
+      for (const [index, person] of people.entries()) {
+        rest.push({
+          id: `staff-rest:${person.id}:${date}`,
+          title: person.name,
+          date,
+          extendedProps: { priority: 1, restOrder: index, rest: { person } },
+        });
+      }
+    }
+    return [...rest, ...appointments];
+  }, [bookings, data, range]);
   const renderEvent = (info: EventContentArg) => {
+    const rest = info.event.extendedProps.rest as RestEntry | undefined;
+    if (rest)
+      return "person" in rest
+        ? <RestStaffEntry person={rest.person} />
+        : <RestStoreEntry kind={rest.kind} period={rest.period} />;
     const booking = info.event.extendedProps as Booking;
     const provider = ["wechat", "google", "kakao"].includes(
       booking.provider || "",
@@ -299,7 +392,7 @@ export default function CalendarPage() {
                   <ChevronDown size={12} />
                 </span>
                 <span className="cal-period-count" role="status">
-                  {loading ? "同步中…" : `${shown.length} 个预约`}
+                  {data ? `${shown.length} 个预约` : error ? "同步失败" : "同步中…"}
                 </span>
               </>
             }
@@ -385,7 +478,7 @@ export default function CalendarPage() {
         </div>
         <div
           className={`cal-calendar ${calendarView === "dayGridDay" ? "is-day" : ""}`}
-          aria-busy={loading}
+          aria-busy={!data && !error}
         >
           <FullCalendar
             ref={calendarRef}
@@ -399,14 +492,10 @@ export default function CalendarPage() {
             weekends
             datesSet={datesSet}
             events={events}
-            eventOrder="start,timeSlot,nailArtist,id"
+            eventOrder="start,priority,restOrder,timeSlot,nailArtist,id"
             eventOrderStrict
             eventContent={renderEvent}
-            dayCellContent={(info) => {
-              const date = info.date;
-              const closed = date.toISOString().slice(0,10) >= seoulDay() && closedWeekdays.includes(date.getUTCDay());
-              return <>{info.dayNumberText.replace(/日$/, "")}{closed && <small className="cal-weekly-closed" aria-label="全店固定休息">休</small>}</>;
-            }}
+            dayCellContent={(info) => info.dayNumberText.replace(/日$/, "")}
             height={compact ? "100%" : "auto"}
             contentHeight={compact ? undefined : "auto"}
             fixedWeekCount={false}
@@ -425,8 +514,7 @@ export default function CalendarPage() {
             韩国时间
           </span>
           <span className="cal-unread-summary">
-            <b />
-            {unread} 个未查看
+            {data && <><b />{unread} 个未查看</>}
           </span>
         </div>
       </section>

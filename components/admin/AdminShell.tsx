@@ -4,6 +4,8 @@ import {
   useContext,
   useMemo,
   useEffect,
+  useCallback,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -55,6 +57,8 @@ export function useCalendarRefresh() {
 }
 const SessionContext = createContext<AdminUser | null>(null);
 export const useAdminSession = () => useContext(SessionContext);
+const AdminLoginContext = createContext<((token: string, user: AdminUser) => void) | null>(null);
+export const useAdminLogin = () => useContext(AdminLoginContext);
 const navGroups = [
   {label:"每天的工作",items:[
     {href:"/calendar",label:"预约日历",icon:CalendarDays},
@@ -98,10 +102,16 @@ function AdminShellContent({ children }: { children: ReactNode }) {
   const pathname = usePathname(),
     params = useSearchParams(),
     router = useRouter();
-  const [user, setUser] = useState<AdminUser | null>(null),
-    [ready, setReady] = useState(false),
-    [open, setOpen] = useState(false);
-  const [sessionError,setSessionError]=useState("");
+  const [user, setUser] = useState<AdminUser | null>(null);
+  const [open, setOpen] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const [sessionAttempt, setSessionAttempt] = useState(0);
+  const pendingLoginToken = useRef<string | null>(null);
+  const startSession = useCallback((token: string, current: AdminUser) => {
+    pendingLoginToken.current = token;
+    setSessionError("");
+    setUser(current);
+  }, []);
   const [calendarVersion, setCalendarVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const calendarRefresh = useMemo(
@@ -110,11 +120,10 @@ function AdminShellContent({ children }: { children: ReactNode }) {
   );
   const isLogin = pathname === "/";
   useEffect(() => {
-    if (isLogin) {
-      setReady(true);
-      return;
-    }
+    if (isLogin) return;
     const token = localStorage.getItem("accessToken");
+    const fromLogin = pendingLoginToken.current;
+    pendingLoginToken.current = null;
     try {
       if (!token) throw new Error();
       const value = JSON.parse(
@@ -132,16 +141,36 @@ function AdminShellContent({ children }: { children: ReactNode }) {
         value.exp * 1000 <= Date.now()
       )
         throw new Error();
-      const control=new AbortController();
+      // The login response already verified this token's session in this tab.
+      if (token === fromLogin) return;
+      const control = new AbortController();
       setSessionError("");
-      void adminApi<AdminUser>("/api/auth/session",{signal:control.signal}).then(current=>{setUser(current);setReady(true);}).catch(error=>{if(!control.signal.aborted){setUser(null);setSessionError(error.message||"读取账号权限失败");setReady(true);}});
-      return ()=>control.abort();
+      const timeout = window.setTimeout(() => {
+        control.abort();
+        setUser(null);
+        setSessionError("读取账号权限超时，请重试");
+      }, 12_000);
+      void adminApi<AdminUser>("/api/auth/session", { signal: control.signal })
+        .then((current) => {
+          if (!control.signal.aborted) setUser(current);
+        })
+        .catch((error) => {
+          if (control.signal.aborted) return;
+          setUser(null);
+          setSessionError(error.message || "读取账号权限失败");
+        })
+        .finally(() => window.clearTimeout(timeout));
+      return () => {
+        window.clearTimeout(timeout);
+        control.abort();
+      };
     } catch {
+      setUser(null);
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       router.replace("/");
     }
-  }, [isLogin, router,pathname]);
+  }, [isLogin, router, pathname, sessionAttempt]);
   const active = (href: string) => {
     const [path, search] = href.split("?");
     if (path === "/dashboard/user-reservation")
@@ -155,6 +184,7 @@ function AdminShellContent({ children }: { children: ReactNode }) {
   };
   const current = navItems.find((item) => active(item.href));
   const logout = () => {
+    pendingLoginToken.current = null;
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("calendarDataCache");
@@ -221,12 +251,16 @@ function AdminShellContent({ children }: { children: ReactNode }) {
       </div>
     </>
   );
-  if (isLogin) return <>{children}</>;
-  if (!ready || !user)
+  if (isLogin) return <AdminLoginContext.Provider value={startSession}>{children}</AdminLoginContext.Provider>;
+  if (!user)
     return (
       <div className="admin-loading-screen">
-        <p>{sessionError||"正在打开工作室…"}</p>
-        {sessionError&&<Button variant="outline" onClick={()=>window.location.reload()}>重新加载</Button>}
+        <p role={sessionError ? "alert" : "status"}>{sessionError || "正在打开工作室…"}</p>
+        {sessionError && (
+          <Button variant="outline" onClick={() => setSessionAttempt((attempt) => attempt + 1)}>
+            重试
+          </Button>
+        )}
       </div>
     );
   return (

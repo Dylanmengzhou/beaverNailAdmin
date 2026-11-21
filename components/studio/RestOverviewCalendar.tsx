@@ -1,10 +1,11 @@
 "use client";
 
-import {CalendarDays,ChevronLeft,ChevronRight,MoonStar,UsersRound} from "lucide-react";
+import {CalendarDays,ChevronLeft,ChevronRight,UsersRound} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {MonthPicker} from "@/components/ui/month-picker";
 import {dayLabel,restDayOverview, type RestStaff,type TimeOff} from "@/lib/studio/time-off-display";
 import {seoulDay,slotInstant} from "@/lib/studio/booking";
+import {RestStaffEntry,RestStoreEntry} from "./RestCalendarEntries";
 
 const weekdays=["一","二","三","四","五","六","日"];
 const key=(date:Date)=>date.toISOString().slice(0,10);
@@ -43,8 +44,8 @@ export default function RestOverviewCalendar({weekly,records,staff,day,month,onS
    {Array.from({length:count/7},(_,week)=><div role="row" className="rest-month-week" key={week}>{days.slice(week*7,week*7+7).map(({value,date,overview})=><div role="gridcell" key={value} className={"rest-month-cell"+(value.slice(0,7)!==monthKey?" is-outside":"")+(value===today?" is-today":"")}>
     <Button type="button" variant="ghost" className="rest-month-day" aria-pressed={value===day} aria-current={value===today?"date":undefined} aria-label={[value,value===today&&"今天",state(overview),...overview.people.map(person=>person.name+" "+person.period+"休息")].filter(Boolean).join("，")} onClick={()=>onSelect(slotInstant(value,"12:00"))}>
      <span className="rest-day-number"><strong>{date.getUTCDate()}</strong></span>
-     {overview.store.kind!=="open"&&<span className={"rest-cell-store is-"+overview.store.kind}><MoonStar className="size-3"/>{overview.store.kind==="closed"?"全店休息":"临时店休"}</span>}
-     <span className="rest-cell-people">{overview.people.slice(0,3).map(person=><span className="rest-cell-person" key={person.id}><b>{person.name}</b><small>{person.period}</small></span>)}{overview.people.length>3&&<small className="rest-cell-more">另 {overview.people.length-3} 人</small>}</span>
+     {overview.store.kind!=="open"&&<RestStoreEntry kind={overview.store.kind}/>}
+     <span className="rest-cell-people">{overview.people.slice(0,3).map(person=><RestStaffEntry person={person} key={person.id}/>)}{overview.people.length>3&&<small className="rest-cell-more">另 {overview.people.length-3} 人</small>}</span>
      {!!overview.people.length&&<span className="rest-cell-summary" aria-hidden="true"><b>{overview.people[0].name}</b>{overview.people.length>1&&<small>+{overview.people.length-1}</small>}</span>}
     </Button>
    </div>)}</div>)}
